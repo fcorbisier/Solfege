@@ -106,7 +106,7 @@
 </head>
 <body>
 
-<div id="loading">
+<div id="loading" style="display:none">
   <div class="load-icon">🎹</div>
   <p id="load-msg">Chargement du piano Steinway…</p>
   <div class="load-bar-wrap"><div class="load-bar" id="load-bar"></div></div>
@@ -247,27 +247,30 @@ function loadSampler() {
         'A5':'A5.mp3','C6':'C6.mp3',
       },
       baseUrl: BASE,
-      onload: () => {
-        document.getElementById('load-bar').style.width = '100%';
-        document.getElementById('load-msg').textContent = '🎹 Steinway chargé ✓';
-        setTimeout(() => {
-          document.getElementById('loading').style.display = 'none';
-          resolve();
-        }, 500);
-      },
-      onerror: () => {
-        document.getElementById('load-msg').textContent = '⚠ Erreur chargement — vérifiez votre connexion';
-        resolve(); // continue anyway
-      }
+      release: 1,
     }).toDestination();
 
-    // Simulate progress bar
+    // Progress bar simulation
     let pct = 0;
     const iv = setInterval(() => {
       pct = Math.min(pct + 2, 88);
       document.getElementById('load-bar').style.width = pct + '%';
       if (pct >= 88) clearInterval(iv);
     }, 100);
+
+    Tone.loaded().then(() => {
+      clearInterval(iv);
+      document.getElementById('load-bar').style.width = '100%';
+      document.getElementById('load-msg').textContent = '🎹 Steinway chargé ✓';
+      setTimeout(() => {
+        document.getElementById('loading').style.display = 'none';
+        resolve();
+      }, 500);
+    }).catch(() => {
+      document.getElementById('load-msg').textContent = '⚠ Erreur chargement samples';
+      document.getElementById('loading').style.display = 'none';
+      resolve();
+    });
   });
 }
 
@@ -476,7 +479,22 @@ document.addEventListener('keydown', e => {
 // ── Init ───────────────────────────────────────────────────────────────────────
 buildKbd();
 updateScore();
-loadSampler();
+
+// Chrome exige un geste utilisateur avant de démarrer l'AudioContext
+// On charge le sampler au premier clic sur n'importe quel bouton
+let samplerReady = false;
+async function ensureSampler() {
+  if (samplerReady) return;
+  document.getElementById('loading').style.display = 'flex';
+  document.getElementById('load-bar').style.width = '0%';
+  document.getElementById('load-msg').textContent = 'Chargement du piano Steinway…';
+  await Tone.start();
+  await loadSampler();
+  samplerReady = true;
+}
+
+document.getElementById('btn-generate')?.addEventListener('click', ensureSampler, {once: true});
+document.querySelectorAll('.kb').forEach(b => b.addEventListener('click', ensureSampler, {once: true}));
 </script>
 </body>
 </html>
