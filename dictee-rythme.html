@@ -125,7 +125,7 @@ input[type=range]{padding:.2rem 0;accent-color:var(--accent)}
 </div>
 <header>
   <h1>Dictée de Rythme</h1>
-  <p>Steinway Grand Piano · Entraînement à l'oreille rythmique · <span style="color:var(--border)">v1.4</span></p>
+  <p>Steinway Grand Piano · Entraînement à l'oreille rythmique · <span style="color:var(--border)">v1.6</span></p>
 </header>
 <div class="layout">
 
@@ -437,11 +437,14 @@ function getPianoNote(){
 function playPiano(t, dur){
   if(!sampler||!sampler.loaded)return;
   const note=getPianoNote();
-  sampler.triggerAttackRelease(note, Math.min(dur,2), t);
+  // Durée minimale 0.18s pour que la note soit audible même pour les doubles croches
+  sampler.triggerAttackRelease(note, Math.max(Math.min(dur,2), 0.18), t);
 }
 
 function playGrp(grp, tStart, beat){
-  grp.events.forEach(ev=>{if(!ev.r)playPiano(tStart+ev.o*beat, ev.d*beat);});
+  // Pour le feedback au clic (beat petit), on joue toutes les notes en séquence rapide mais audible
+  const minBeat = Math.max(beat, 0.25);
+  grp.events.forEach(ev=>{if(!ev.r)playPiano(tStart+ev.o*minBeat, ev.d*minBeat);});
 }
 
 function getMeter(){return parseInt(document.getElementById('meter').value);}
@@ -587,7 +590,8 @@ function addAns(id){
   const grp=G(id);if(!grp)return;
   if(totalB(userAns)+grp.beats>targetB()+.001)return;
   userAns.push(id);renderAns(null);updateBL();
-  playGrp(grp, Tone.now()+.01, .35);
+  const feedbackBeat = 60 / getTempo();
+  playGrp(grp, Tone.now()+.01, feedbackBeat);
 }
 function renderAns(results){
   const el=document.getElementById('ans-display');el.innerHTML='';
