@@ -5,12 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dictée de Rythme</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
 <style>
 @font-face {
   font-family: 'Bravura';
-  src: url('https://cdn.jsdelivr.net/npm/bravura@1.3.2/redist/bravura.woff2') format('woff2'),
-       url('https://cdn.jsdelivr.net/npm/bravura@1.3.2/redist/bravura.woff') format('woff');
+  src: url('https://cdn.jsdelivr.net/fontsource/fonts/bravura@latest/latin-400-normal.woff2') format('woff2'),
+       url('https://cdn.jsdelivr.net/fontsource/fonts/bravura@latest/latin-400-normal.woff') format('woff');
 }
 </style>
 <style>
@@ -126,7 +125,7 @@ input[type=range]{padding:.2rem 0;accent-color:var(--accent)}
 </div>
 <header>
   <h1>Dictée de Rythme</h1>
-  <p>Steinway Grand Piano · Entraînement à l'oreille rythmique · <span style="color:var(--border)">v1.3</span></p>
+  <p>Steinway Grand Piano · Entraînement à l'oreille rythmique · <span style="color:var(--border)">v1.4</span></p>
 </header>
 <div class="layout">
 
@@ -227,6 +226,20 @@ input[type=range]{padding:.2rem 0;accent-color:var(--accent)}
 
 </div>
 
+<script>
+// Tone.js est chargé dynamiquement au premier clic pour éviter l'erreur AudioContext autostart
+let Tone = null;
+async function loadTone() {
+  if (Tone) return;
+  await new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js';
+    s.onload = resolve; s.onerror = reject;
+    document.head.appendChild(s);
+  });
+  Tone = window.Tone;
+}
+</script>
 <script>
 // ═══════════════════════════════════════════════════════════
 // SVG NOTE RENDERER
@@ -397,7 +410,8 @@ async function ensureSampler(){
   const ld=document.getElementById('loading');
   ld.style.display='flex';
   document.getElementById('load-bar').style.width='0%';
-  document.getElementById('load-msg').textContent='Chargement du piano Steinway…';
+  document.getElementById('load-msg').textContent='Chargement…';
+  await loadTone();
   await Tone.start();
   await loadSampler();
   samplerReady=true;
