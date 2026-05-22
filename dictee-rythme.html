@@ -5,23 +5,35 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dictée de Rythme</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
 <style>
 @font-face {
   font-family: 'Bravura';
   src: url('https://cdn.jsdelivr.net/npm/bravura@latest/redist/bravura.woff2') format('woff2'),
        url('https://cdn.jsdelivr.net/npm/bravura@latest/redist/bravura.woff') format('woff');
-  font-weight: normal;
-  font-style: normal;
 }
 </style>
 <style>
 :root{--bg:#0e0e12;--surface:#16161e;--surface2:#1e1e2a;--border:#2a2a3a;--accent:#c8a97e;--accent2:#7eb8c8;--text:#e8e4d9;--muted:#6b6880;--success:#7ec87e;--error:#c87e7e;}
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:2rem 1rem;background-image:radial-gradient(ellipse 70% 40% at 15% 5%,rgba(200,169,126,.05) 0%,transparent 60%),radial-gradient(ellipse 50% 50% at 85% 95%,rgba(126,184,200,.05) 0%,transparent 60%)}
-header{text-align:center;margin-bottom:2rem}
-header h1{font-family:'Playfair Display',serif;font-size:2.1rem;font-weight:400;color:var(--accent);letter-spacing:.02em}
-header p{color:var(--muted);font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;margin-top:.35rem}
-.container{width:100%;max-width:780px;display:flex;flex-direction:column;gap:1.4rem}
+body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;min-height:100vh;
+  display:flex;flex-direction:column;align-items:center;padding:1.5rem 1rem;
+  background-image:radial-gradient(ellipse 70% 40% at 15% 5%,rgba(200,169,126,.05) 0%,transparent 60%),
+  radial-gradient(ellipse 50% 50% at 85% 95%,rgba(126,184,200,.05) 0%,transparent 60%)}
+header{text-align:center;margin-bottom:1.2rem}
+header h1{font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:400;color:var(--accent);letter-spacing:.02em}
+header p{color:var(--muted);font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;margin-top:.3rem}
+/* Two-column layout */
+.layout{width:100%;max-width:1200px;display:grid;grid-template-columns:360px 1fr;gap:1.2rem;align-items:start}
+.col-left{display:flex;flex-direction:column;gap:1.2rem}
+.col-right{display:flex;flex-direction:column;gap:1.2rem}
+/* Loading overlay */
+#loading{position:fixed;inset:0;background:rgba(14,14,18,.95);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:1rem;z-index:999;display:none}
+#loading p{color:var(--accent);font-family:'DM Mono',monospace;font-size:.85rem;letter-spacing:.1em}
+.load-bar-wrap{width:240px;height:3px;background:#2a2a3a;border-radius:2px;overflow:hidden}
+.load-bar{height:100%;width:0%;background:var(--accent);border-radius:2px;transition:width .3s}
+.load-icon{font-size:2.5rem}
 .panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.4rem}
 .pt{font-size:.62rem;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);margin-bottom:1rem;display:flex;align-items:center;gap:.5rem}
 .pt::after{content:'';flex:1;height:1px;background:var(--border)}
@@ -107,11 +119,18 @@ input[type=range]{padding:.2rem 0;accent-color:var(--accent)}
 </style>
 </head>
 <body>
+<div id="loading" style="display:none;position:fixed;inset:0;background:rgba(14,14,18,.95);flex-direction:column;align-items:center;justify-content:center;gap:1rem;z-index:999">
+  <div class="load-icon">🎹</div>
+  <p id="load-msg">Chargement du piano Steinway…</p>
+  <div class="load-bar-wrap"><div class="load-bar" id="load-bar"></div></div>
+</div>
 <header>
   <h1>Dictée de Rythme</h1>
-  <p>Entraînement à l'oreille rythmique</p>
+  <p>Steinway Grand Piano · Entraînement à l'oreille rythmique</p>
 </header>
-<div class="container">
+<div class="layout">
+
+<div class="col-left">
   <div class="panel">
     <div class="pt">Configuration</div>
     <div class="cfg">
@@ -146,6 +165,20 @@ input[type=range]{padding:.2rem 0;accent-color:var(--accent)}
   </div>
 
   <div class="panel">
+    <div class="pt">Score</div>
+    <div class="score-row">
+      <div><div class="sl">Exercices</div><div class="sv" id="sc-t">0</div></div>
+      <div><div class="sl">Réussis</div><div class="sv" id="sc-ok" style="color:var(--success)">0</div></div>
+      <div><div class="sl">Ratés</div><div class="sv" id="sc-ko" style="color:var(--error)">0</div></div>
+      <div><div class="sl">Précision</div><div class="sv" id="sc-p" style="font-size:1.3rem">—</div></div>
+    </div>
+    <div class="dots" id="dots"></div>
+    <button class="btn btn-sm" style="margin-top:.8rem;color:var(--muted)" onclick="resetScore()">Réinitialiser</button>
+  </div>
+</div>
+
+<div class="col-right">
+  <div class="panel">
     <div class="pt">Mesure à identifier
       <span class="metro-dot" id="metro-dot"></span>
       <div class="play-ind" id="play-ind">
@@ -154,38 +187,32 @@ input[type=range]{padding:.2rem 0;accent-color:var(--accent)}
     </div>
     <div class="staff-wrap"><div class="staff" id="staff"><span class="hint-txt">Générez un rythme pour commencer</span></div></div>
     <div class="controls">
-      <button class="btn btn-p" onclick="generate()">⟳ Générer</button>
+      <button class="btn btn-p" id="btn-generate" onclick="generate()">⟳ Générer</button>
       <button class="btn" id="btn-play" onclick="playRhythm()" disabled>▶ Écouter</button>
       <button class="btn" id="btn-metro" onclick="playMetro()" disabled>♩ Métronome</button>
       <button class="btn" id="btn-reveal" onclick="revealAll()" disabled>◎ Révéler</button>
       <button class="btn" id="btn-demo" onclick="playDemo()" disabled style="border-color:var(--accent2);color:var(--accent2)">👐 Démonstration</button>
     </div>
-
-    <!-- Demo visualizer -->
     <div id="demo-panel" style="display:none;margin-top:1rem">
       <div style="font-size:.6rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:.75rem">Pulsation &amp; rythme</div>
       <div style="display:flex;gap:1.5rem;align-items:flex-end">
-        <!-- Pied = pulsation -->
         <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem">
           <div style="font-size:.6rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase">Pied<br>(pulsation)</div>
           <div id="foot-icon" style="font-size:2.2rem;transition:transform .06s,filter .06s;filter:grayscale(1) opacity(.3)">🦶</div>
         </div>
-        <!-- Mains = rythme -->
         <div style="display:flex;flex-direction:column;align-items:center;gap:.5rem;flex:1">
           <div style="font-size:.6rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase">Mains<br>(rythme)</div>
           <div id="hands-row" style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;min-height:44px"></div>
         </div>
       </div>
-      <!-- Timeline bar -->
       <div style="margin-top:1rem;position:relative;height:6px;background:var(--border);border-radius:3px;overflow:hidden">
         <div id="demo-progress" style="height:100%;width:0%;background:var(--accent2);border-radius:3px;transition:width .05s linear"></div>
       </div>
     </div>
-
     <div class="tip">[Espace] Rejouer · [Entrée] Vérifier</div>
   </div>
 
-  <div class="panel" id="ans-panel" style="display:none">
+  <div class="panel" id="ans-panel">
     <div class="pt">Votre réponse <span style="color:var(--muted);font-size:.7rem;margin-left:.5rem" id="beats-left"></span></div>
     <div class="ans-display" id="ans-display"><span class="hint-txt" style="font-size:.75rem">Cliquez sur les figures ci-dessous</span></div>
     <div class="ans-kbd" id="ans-kbd" style="margin-top:.75rem"></div>
@@ -196,18 +223,8 @@ input[type=range]{padding:.2rem 0;accent-color:var(--accent)}
     </div>
     <div class="result" id="result"></div>
   </div>
+</div>
 
-  <div class="panel">
-    <div class="pt">Score</div>
-    <div class="score-row">
-      <div><div class="sl">Exercices</div><div class="sv" id="sc-t">0</div></div>
-      <div><div class="sl">Réussis</div><div class="sv" id="sc-ok" style="color:var(--success)">0</div></div>
-      <div><div class="sl">Ratés</div><div class="sv" id="sc-ko" style="color:var(--error)">0</div></div>
-      <div><div class="sl">Précision</div><div class="sv" id="sc-p" style="font-size:1.3rem">—</div></div>
-    </div>
-    <div class="dots" id="dots"></div>
-    <button class="btn btn-sm" style="margin-top:1rem;color:var(--muted)" onclick="resetScore()">Réinitialiser</button>
-  </div>
 </div>
 
 <script>
@@ -341,54 +358,77 @@ const DEFAULT_ON=new Set(['noire','blanche','2croches','4dcr','croche-2dcr','con
 // ═══════════════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════════════
-let currentSeq=[],userAns=[],revealed=false,playing=false,AC=null;
+let currentSeq=[],userAns=[],revealed=false,playing=false;
 let score={t:0,ok:0,ko:0,h:[]};
+let sampler=null, samplerReady=false;
 function G(id){return GROUPS.find(g=>g.id===id);}
-function getAC(){if(!AC)AC=new(window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();return AC;}
 
 // ═══════════════════════════════════════════════════════════
-// AUDIO
+// AUDIO — Tone.js Salamander + WebAudio click
 // ═══════════════════════════════════════════════════════════
-let _rev=null;
-function getRev(ac){
-  if(_rev)return _rev;
-  const l=ac.sampleRate,b=ac.createBuffer(2,l,ac.sampleRate);
-  for(let c=0;c<2;c++){const d=b.getChannelData(c);for(let i=0;i<l;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/l,3);}
-  _rev=ac.createConvolver();_rev.buffer=b;_rev.connect(ac.destination);return _rev;
+const NOTE_MAP={do:{3:'C3',4:'C4',5:'C5'},ré:{3:'D3',4:'D4',5:'D5'},mi:{3:'E3',4:'E4',5:'E5'},
+  fa:{3:'F3',4:'F4',5:'F5'},sol:{3:'G3',4:'G4',5:'G5'},la:{3:'A3',4:'A4',5:'A5'},si:{3:'B3',4:'B4',5:'B5'}};
+
+function loadSampler(){
+  return new Promise(resolve=>{
+    sampler=new Tone.Sampler({
+      urls:{'A0':'A0.mp3','C1':'C1.mp3','D#1':'Ds1.mp3','F#1':'Fs1.mp3',
+        'A1':'A1.mp3','C2':'C2.mp3','D#2':'Ds2.mp3','F#2':'Fs2.mp3',
+        'A2':'A2.mp3','C3':'C3.mp3','D#3':'Ds3.mp3','F#3':'Fs3.mp3',
+        'A3':'A3.mp3','C4':'C4.mp3','D#4':'Ds4.mp3','F#4':'Fs4.mp3',
+        'A4':'A4.mp3','C5':'C5.mp3','D#5':'Ds5.mp3','F#5':'Fs5.mp3',
+        'A5':'A5.mp3','C6':'C6.mp3'},
+      baseUrl:'https://tonejs.github.io/audio/salamander/',
+      release:1,
+    }).toDestination();
+    let pct=0;
+    const iv=setInterval(()=>{pct=Math.min(pct+2,88);document.getElementById('load-bar').style.width=pct+'%';if(pct>=88)clearInterval(iv);},100);
+    Tone.loaded().then(()=>{
+      clearInterval(iv);
+      document.getElementById('load-bar').style.width='100%';
+      document.getElementById('load-msg').textContent='🎹 Steinway chargé ✓';
+      setTimeout(()=>{document.getElementById('loading').style.display='none';resolve();},500);
+    }).catch(()=>{document.getElementById('loading').style.display='none';resolve();});
+  });
 }
-function click(ac,t,acc){
+
+async function ensureSampler(){
+  if(samplerReady)return;
+  const ld=document.getElementById('loading');
+  ld.style.display='flex';
+  document.getElementById('load-bar').style.width='0%';
+  document.getElementById('load-msg').textContent='Chargement du piano Steinway…';
+  await Tone.start();
+  await loadSampler();
+  samplerReady=true;
+}
+
+// Click métronome (WebAudio natif — pas besoin de Tone pour ça)
+let _ac=null;
+function getAC(){if(!_ac)_ac=new(window.AudioContext||window.webkitAudioContext)();if(_ac.state==='suspended')_ac.resume();return _ac;}
+function click(t,acc){
+  const ac=getAC();
   const o=ac.createOscillator(),g=ac.createGain();
   o.type='sine';o.frequency.value=acc?1200:800;
   g.gain.setValueAtTime(acc?.45:.22,t);g.gain.exponentialRampToValueAtTime(.001,t+.04);
   o.connect(g);g.connect(ac.destination);o.start(t);o.stop(t+.05);
 }
-const PF={do:261.63,ré:293.66,mi:329.63,fa:349.23,sol:392,la:440,si:493.88};
-function pFreq(){
+
+function getPianoNote(){
   const n=document.getElementById('piano-note')?.value||'sol';
   const o=parseInt(document.getElementById('piano-oct')?.value||'4');
-  return(PF[n]||392)*Math.pow(2,o-4);
+  return NOTE_MAP[n]?.[o]||'G4';
 }
-function piano(ac,t,dur){
-  const f=pFreq(),rv=getRev(ac),m=ac.createGain();
-  m.connect(ac.destination);m.connect(rv);
-  [{m:1,a:1,d:0},{m:2,a:.5,d:1.2},{m:3,a:.25,d:-.8},{m:4,a:.15,d:.5},{m:5,a:.08,d:-1.5},{m:6,a:.05,d:.3}]
-  .forEach(({m:ml,a,d})=>{
-    const o=ac.createOscillator(),g=ac.createGain();
-    o.type='sine';o.frequency.value=f*ml;o.detune.value=d;
-    const dc=Math.pow(.55,ml-1)*dur*1.8+.3;
-    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(a*.6,t+.006);
-    g.gain.exponentialRampToValueAtTime(a*.35,t+.08);g.gain.exponentialRampToValueAtTime(.0001,t+dc);
-    o.connect(g);g.connect(m);o.start(t);o.stop(t+dc+.05);
-  });
-  const bl=Math.floor(ac.sampleRate*.025),nb=ac.createBuffer(1,bl,ac.sampleRate),nd=nb.getChannelData(0);
-  for(let i=0;i<bl;i++)nd[i]=(Math.random()*2-1)*(1-i/bl);
-  const ns=ac.createBufferSource();ns.buffer=nb;
-  const bp=ac.createBiquadFilter();bp.type='bandpass';bp.frequency.value=f*2;bp.Q.value=.8;
-  const ng=ac.createGain();ng.gain.setValueAtTime(.12,t);ng.gain.exponentialRampToValueAtTime(.0001,t+.025);
-  ns.connect(bp);bp.connect(ng);ng.connect(m);ns.start(t);ns.stop(t+.03);
-  m.gain.setValueAtTime(.55,t);m.gain.exponentialRampToValueAtTime(.0001,t+dur*1.8+.8);
+
+function playPiano(t, dur){
+  if(!sampler||!sampler.loaded)return;
+  const note=getPianoNote();
+  sampler.triggerAttackRelease(note, Math.min(dur,2), t);
 }
-function playGrp(ac,grp,t,beat){grp.events.forEach(ev=>{if(!ev.r)piano(ac,t+ev.o*beat,Math.min(ev.d*beat,2));});}
+
+function playGrp(grp, tStart, beat){
+  grp.events.forEach(ev=>{if(!ev.r)playPiano(tStart+ev.o*beat, ev.d*beat);});
+}
 
 function getMeter(){return parseInt(document.getElementById('meter').value);}
 function getTempo(){return parseInt(document.getElementById('tempo').value);}
@@ -399,141 +439,56 @@ function playRhythm(seq){
   const ac=getAC(),beat=60/getTempo(),meter=getMeter();
   playing=true;document.getElementById('play-ind').classList.add('on');document.getElementById('btn-play').disabled=true;
   let t=ac.currentTime+.1;
-  for(let i=0;i<meter;i++){click(ac,t,i===0);t+=beat;}t+=beat*.2;
+  for(let i=0;i<meter;i++){click(t,i===0);t+=beat;}t+=beat*.2;
   const nc=document.querySelectorAll('.ncell');
   seq.forEach((id,i)=>{
     const grp=G(id),dur=grp.beats*beat,delay=(t-ac.currentTime)*1000;
     setTimeout(()=>{nc.forEach(e=>e.classList.remove('active'));nc[i]?.classList.add('active');flashM();},delay);
-    playGrp(ac,grp,t,beat);t+=dur;
+    playGrp(grp,t,beat);t+=dur;
   });
   setTimeout(()=>{nc.forEach(e=>e.classList.remove('active'));document.getElementById('play-ind').classList.remove('on');document.getElementById('btn-play').disabled=false;playing=false;},(t-ac.currentTime)*1000+400);
 }
+
 function playMetro(){
   if(playing)return;const ac=getAC(),beat=60/getTempo(),meter=getMeter(),bars=getBars();
   playing=true;document.getElementById('btn-metro').disabled=true;
   let t=ac.currentTime+.1;
-  for(let b=0;b<bars;b++)for(let i=0;i<meter;i++){click(ac,t,i===0);setTimeout(flashM,(t-ac.currentTime)*1000);t+=beat;}
+  for(let b=0;b<bars;b++)for(let i=0;i<meter;i++){click(t,i===0);setTimeout(flashM,(t-ac.currentTime)*1000);t+=beat;}
   setTimeout(()=>{document.getElementById('btn-metro').disabled=false;playing=false;},(t-ac.currentTime)*1000+100);
 }
 function flashM(){const d=document.getElementById('metro-dot');d.classList.remove('beat');void d.offsetWidth;d.classList.add('beat');}
 
 function playDemo(){
-  if(playing)return;
-  if(!currentSeq.length)return;
+  if(playing)return;if(!currentSeq.length)return;
   const ac=getAC(),beat=60/getTempo(),meter=getMeter(),bars=getBars();
-
-  // Build the list of ALL events: pulsation beats + note onsets
-  // pulsation: one per beat for the whole sequence
-  // note onsets: one per event in each group (only non-rest)
-  const totalBeats = meter * bars;
-
-  // Collect note onset times (in beats from t=0)
-  const noteOnsets = [];
-  let cursor = 0;
-  currentSeq.forEach(id => {
-    const grp = G(id);
-    grp.events.forEach(ev => {
-      if (!ev.r) noteOnsets.push(cursor + ev.o);
-    });
-    cursor += grp.beats;
-  });
-
-  // Build hand dots display
-  const handsRow = document.getElementById('hands-row');
-  handsRow.innerHTML = '';
-  noteOnsets.forEach((_, i) => {
-    const dot = document.createElement('div');
-    dot.className = 'hand-dot';
-    dot.id = 'hd-' + i;
-    dot.textContent = '👐';
-    handsRow.appendChild(dot);
-  });
-  // Add rest indicators for silent beats
-  const allOnsets = new Set(noteOnsets.map(o => Math.round(o * 100)));
-
-  document.getElementById('demo-panel').style.display = 'block';
-  document.getElementById('demo-progress').style.width = '0%';
-
-  playing = true;
-  document.getElementById('play-ind').classList.add('on');
-  document.getElementById('btn-play').disabled = true;
-  document.getElementById('btn-demo').disabled = true;
-
-  let t = ac.currentTime + .1;
-  // Intro metronome bar
-  for(let i=0;i<meter;i++){click(ac,t,i===0);t+=beat;}
-  t += beat * .2;
-
-  const seqStart = t;
-  const totalDur = totalBeats * beat;
-
-  // Schedule pulsation foot beats
-  for(let b = 0; b < totalBeats; b++){
-    const delay = (seqStart + b * beat - ac.currentTime) * 1000;
-    const isAccent = b % meter === 0;
-    setTimeout(() => {
-      click(ac, ac.currentTime + .01, isAccent);
-      // Foot animation
-      const foot = document.getElementById('foot-icon');
-      foot.style.animation = 'none';
-      void foot.offsetWidth;
-      foot.style.animation = 'footBeat .4s ease-out forwards';
-      foot.style.filter = isAccent ? 'drop-shadow(0 0 8px var(--accent))' : 'none';
-    }, delay);
+  const totalBeats=meter*bars;
+  const noteOnsets=[];let cursor=0;
+  currentSeq.forEach(id=>{const grp=G(id);grp.events.forEach(ev=>{if(!ev.r)noteOnsets.push(cursor+ev.o);});cursor+=grp.beats;});
+  const handsRow=document.getElementById('hands-row');handsRow.innerHTML='';
+  noteOnsets.forEach((_,i)=>{const dot=document.createElement('div');dot.className='hand-dot';dot.id='hd-'+i;dot.textContent='👐';handsRow.appendChild(dot);});
+  document.getElementById('demo-panel').style.display='block';document.getElementById('demo-progress').style.width='0%';
+  playing=true;document.getElementById('play-ind').classList.add('on');document.getElementById('btn-play').disabled=true;document.getElementById('btn-demo').disabled=true;
+  let t=ac.currentTime+.1;
+  for(let i=0;i<meter;i++){click(t,i===0);t+=beat;}t+=beat*.2;
+  const seqStart=t,totalDur=totalBeats*beat;
+  for(let b=0;b<totalBeats;b++){
+    const delay=(seqStart+b*beat-ac.currentTime)*1000,isAccent=b%meter===0;
+    setTimeout(()=>{click(ac.currentTime+.01,isAccent);const foot=document.getElementById('foot-icon');foot.style.animation='none';void foot.offsetWidth;foot.style.animation='footBeat .4s ease-out forwards';foot.style.filter=isAccent?'drop-shadow(0 0 8px var(--accent))':'none';},delay);
   }
-
-  // Schedule note onset hand animations + piano sounds
-  noteOnsets.forEach((onset, i) => {
-    const delay = (seqStart + onset * beat - ac.currentTime) * 1000;
-    // Find which group this onset belongs to for duration
-    let grpDur = .42;
-    let cur2 = 0;
-    for(const id of currentSeq){
-      const grp = G(id);
-      for(const ev of grp.events){
-        if(!ev.r && Math.abs(cur2 + ev.o - onset) < .001) grpDur = ev.d;
-      }
-      cur2 += grp.beats;
-    }
-    setTimeout(() => {
-      // Piano sound
-      piano(ac, ac.currentTime + .01, Math.min(grpDur * beat, 2));
-      // Hand dot flash
-      const dot = document.getElementById('hd-' + i);
-      if(dot){dot.classList.remove('beat');void dot.offsetWidth;dot.classList.add('beat');}
-      // Highlight staff cell
-      const nc = document.querySelectorAll('.ncell');
-      // find which group index this onset falls in
-      let c3 = 0, gi = 0;
-      for(let j=0;j<currentSeq.length;j++){
-        const grp=G(currentSeq[j]);
-        if(onset >= c3 - .001 && onset < c3 + grp.beats - .001){gi=j;break;}
-        c3 += grp.beats;
-      }
-      nc.forEach(e=>e.classList.remove('active'));
-      nc[gi]?.classList.add('active');
-      flashM();
-    }, delay);
+  noteOnsets.forEach((onset,i)=>{
+    let grpDur=.42,cur2=0;
+    for(const id of currentSeq){const grp=G(id);for(const ev of grp.events){if(!ev.r&&Math.abs(cur2+ev.o-onset)<.001)grpDur=ev.d;}cur2+=grp.beats;}
+    const delay=(seqStart+onset*beat-ac.currentTime)*1000;
+    setTimeout(()=>{
+      playPiano(ac.currentTime+.01,grpDur*beat);
+      const dot=document.getElementById('hd-'+i);if(dot){dot.classList.remove('beat');void dot.offsetWidth;dot.classList.add('beat');}
+      const nc=document.querySelectorAll('.ncell');let c3=0,gi=0;
+      for(let j=0;j<currentSeq.length;j++){const grp=G(currentSeq[j]);if(onset>=c3-.001&&onset<c3+grp.beats-.001){gi=j;break;}c3+=grp.beats;}
+      nc.forEach(e=>e.classList.remove('active'));nc[gi]?.classList.add('active');flashM();
+    },delay);
   });
-
-  // Progress bar
-  const progInterval = setInterval(() => {
-    const elapsed = (ac.currentTime - seqStart) / totalDur * 100;
-    const p = document.getElementById('demo-progress');
-    if(p) p.style.width = Math.min(elapsed, 100) + '%';
-  }, 50);
-
-  // Cleanup
-  setTimeout(() => {
-    clearInterval(progInterval);
-    document.getElementById('demo-progress').style.width = '100%';
-    document.querySelectorAll('.ncell').forEach(e=>e.classList.remove('active'));
-    document.getElementById('play-ind').classList.remove('on');
-    document.getElementById('btn-play').disabled = false;
-    document.getElementById('btn-demo').disabled = false;
-    document.getElementById('foot-icon').style.filter = 'grayscale(1) opacity(.3)';
-    playing = false;
-  }, (seqStart + totalDur - ac.currentTime) * 1000 + 600);
+  const progIv=setInterval(()=>{const el=document.getElementById('demo-progress');if(el)el.style.width=Math.min((ac.currentTime-seqStart)/totalDur*100,100)+'%';},50);
+  setTimeout(()=>{clearInterval(progIv);document.getElementById('demo-progress').style.width='100%';document.querySelectorAll('.ncell').forEach(e=>e.classList.remove('active'));document.getElementById('play-ind').classList.remove('on');document.getElementById('btn-play').disabled=false;document.getElementById('btn-demo').disabled=false;document.getElementById('foot-icon').style.filter='grayscale(1) opacity(.3)';playing=false;},(seqStart+totalDur-ac.currentTime)*1000+600);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -618,7 +573,7 @@ function addAns(id){
   const grp=G(id);if(!grp)return;
   if(totalB(userAns)+grp.beats>targetB()+.001)return;
   userAns.push(id);renderAns(null);updateBL();
-  const ac=getAC();playGrp(ac,grp,ac.currentTime+.01,.35);
+  playGrp(grp, Tone.now()+.01, .35);
 }
 function renderAns(results){
   const el=document.getElementById('ans-display');el.innerHTML='';
@@ -689,6 +644,9 @@ document.addEventListener('keydown',e=>{
 document.addEventListener('change',e=>{if(e.target.id?.startsWith('tog-'))buildKbd();});
 
 buildToggles();buildKbd();updateScore();
+
+// Charger Salamander au premier clic Générer
+document.getElementById('btn-generate').addEventListener('click', ensureSampler, {once:true});
 </script>
 </body>
 </html>
