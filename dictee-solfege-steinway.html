@@ -23,13 +23,15 @@
   }
   *{margin:0;padding:0;box-sizing:border-box}
   body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;min-height:100vh;
-    display:flex;flex-direction:column;align-items:center;padding:2rem 1rem;
+    display:flex;flex-direction:column;align-items:center;padding:1.5rem 1rem;
     background-image:radial-gradient(ellipse 60% 40% at 20% 10%,rgba(200,169,126,.06) 0%,transparent 60%),
     radial-gradient(ellipse 50% 40% at 80% 90%,rgba(126,184,200,.06) 0%,transparent 60%)}
-  header{text-align:center;margin-bottom:2rem}
-  header h1{font-family:'Playfair Display',serif;font-size:2.1rem;font-weight:400;color:var(--accent)}
-  header p{color:var(--muted);font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;margin-top:.4rem}
-  .container{width:100%;max-width:680px;display:flex;flex-direction:column;gap:1.5rem}
+  header{text-align:center;margin-bottom:1.2rem}
+  header h1{font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:400;color:var(--accent)}
+  header p{color:var(--muted);font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;margin-top:.3rem}
+  .layout{width:100%;max-width:1100px;display:grid;grid-template-columns:340px 1fr;gap:1.2rem;align-items:start}
+  .col-left{display:flex;flex-direction:column;gap:1.2rem}
+  .col-right{display:flex;flex-direction:column;gap:1.2rem}
   .panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem}
   .panel-title{font-size:.65rem;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);
     margin-bottom:1rem;display:flex;align-items:center;gap:.5rem}
@@ -117,8 +119,10 @@
   <p>Steinway Grand Piano · Entraînement à l'oreille</p>
 </header>
 
-<div class="container">
+<div class="layout">
+<div class="col-left">
 
+  <!-- Config -->
   <div class="panel">
     <div class="panel-title">Configuration</div>
     <div class="grid2">
@@ -145,7 +149,6 @@
         </div>
       </div>
     </div>
-
     <div style="margin-top:1rem">
       <div class="panel-title" style="margin-bottom:.75rem">Notes disponibles</div>
       <div class="notes-sel">
@@ -158,17 +161,33 @@
         <div class="nt n-si"><input type="checkbox" id="n-si" checked><label for="n-si">Si</label></div>
       </div>
     </div>
-
     <div id="custom-section" style="margin-top:1rem;display:none">
       <div class="panel-title" style="margin-bottom:.75rem">Séquence personnalisée</div>
       <div class="ci-row">
         <input type="text" id="custom-seq" placeholder="ex: sol fa mi la do">
         <button class="btn btn-sm" onclick="loadCustom()">Charger</button>
       </div>
-      <div style="font-size:.7rem;color:var(--muted);margin-top:.4rem">Notes : do ré(re) mi fa sol la si · séparées par des espaces</div>
+      <div style="font-size:.7rem;color:var(--muted);margin-top:.4rem">do ré(re) mi fa sol la si · espaces</div>
     </div>
   </div>
 
+  <!-- Score -->
+  <div class="panel">
+    <div class="panel-title">Score</div>
+    <div class="score-row">
+      <div><div class="sl">Exercices</div><div class="sv" id="sc-t">0</div></div>
+      <div><div class="sl">Réussis</div><div class="sv" id="sc-ok" style="color:var(--success)">0</div></div>
+      <div><div class="sl">Ratés</div><div class="sv" id="sc-ko" style="color:var(--error)">0</div></div>
+      <div><div class="sl">Précision</div><div class="sv" id="sc-p" style="font-size:1.3rem">—</div></div>
+    </div>
+    <div class="dots" id="dots"></div>
+    <button class="btn btn-sm" style="margin-top:.8rem;color:var(--muted)" onclick="resetScore()">Réinitialiser</button>
+  </div>
+
+</div><!-- /col-left -->
+<div class="col-right">
+
+  <!-- Séquence -->
   <div class="panel">
     <div class="panel-title">
       Séquence
@@ -178,7 +197,7 @@
     </div>
     <div class="seq-display" id="seq-display"><span class="hint">Générez une séquence pour commencer</span></div>
     <div class="controls">
-      <button class="btn btn-p" onclick="generateSequence()">⟳ Générer</button>
+      <button class="btn btn-p" id="btn-generate" onclick="generateSequence()">⟳ Générer</button>
       <button class="btn" id="btn-play" onclick="playSeq()" disabled>▶ Écouter</button>
       <button class="btn" id="btn-reveal" onclick="revealAll()" disabled>◎ Révéler</button>
       <button class="btn btn-sm" id="btn-ref" onclick="playRef()" disabled>♩ Do référence</button>
@@ -186,9 +205,10 @@
     <div class="tip">Raccourcis : [Espace] Rejouer · [Entrée] Vérifier · [D R M F S L B] Saisir · [⌫] Annuler</div>
   </div>
 
-  <div class="panel" id="ans-panel" style="display:none">
+  <!-- Réponse -->
+  <div class="panel" id="ans-panel">
     <div class="panel-title">Votre réponse</div>
-    <div style="display:flex;flex-direction:column;gap:1rem">
+    <div style="display:flex;flex-direction:column;gap:.9rem">
       <div class="ans-notes" id="ans-notes"><span class="hint" style="font-size:.75rem">Cliquez sur les touches ci-dessous</span></div>
       <div class="kbd" id="kbd"></div>
       <div style="display:flex;gap:.5rem">
@@ -200,18 +220,8 @@
     </div>
   </div>
 
-  <div class="panel">
-    <div class="panel-title">Score</div>
-    <div class="score-row">
-      <div><div class="sl">Exercices</div><div class="sv" id="sc-t">0</div></div>
-      <div><div class="sl">Réussis</div><div class="sv" id="sc-ok" style="color:var(--success)">0</div></div>
-      <div><div class="sl">Ratés</div><div class="sv" id="sc-ko" style="color:var(--error)">0</div></div>
-      <div><div class="sl">Précision</div><div class="sv" id="sc-p" style="font-size:1.3rem">—</div></div>
-    </div>
-    <div class="dots" id="dots"></div>
-    <button class="btn btn-sm" style="margin-top:1rem;color:var(--muted)" onclick="resetScore()">Réinitialiser</button>
-  </div>
-</div>
+</div><!-- /col-right -->
+</div><!-- /layout -->
 
 <script>
 // ── Notes ──────────────────────────────────────────────────────────────────────
