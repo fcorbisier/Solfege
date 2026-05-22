@@ -9,8 +9,8 @@
 <style>
 @font-face {
   font-family: 'Bravura';
-  src: url('https://cdn.jsdelivr.net/npm/bravura@latest/redist/bravura.woff2') format('woff2'),
-       url('https://cdn.jsdelivr.net/npm/bravura@latest/redist/bravura.woff') format('woff');
+  src: url('https://cdn.jsdelivr.net/npm/bravura@1.3.2/redist/bravura.woff2') format('woff2'),
+       url('https://cdn.jsdelivr.net/npm/bravura@1.3.2/redist/bravura.woff') format('woff');
 }
 </style>
 <style>
@@ -403,10 +403,10 @@ async function ensureSampler(){
   samplerReady=true;
 }
 
-// Click métronome (WebAudio natif — pas besoin de Tone pour ça)
-let _ac=null;
-function getAC(){if(!_ac)_ac=new(window.AudioContext||window.webkitAudioContext)();if(_ac.state==='suspended')_ac.resume();return _ac;}
+// Click métronome — utilise le contexte Tone.js (disponible après ensureSampler)
+function getAC(){ return Tone.getContext().rawContext; }
 function click(t,acc){
+  if(!samplerReady)return; // pas de contexte avant init
   const ac=getAC();
   const o=ac.createOscillator(),g=ac.createGain();
   o.type='sine';o.frequency.value=acc?1200:800;
@@ -435,7 +435,7 @@ function getTempo(){return parseInt(document.getElementById('tempo').value);}
 function getBars(){return parseInt(document.getElementById('bars').value);}
 
 function playRhythm(seq){
-  if(playing)return;seq=seq||currentSeq;if(!seq.length)return;
+  if(playing||!samplerReady)return;seq=seq||currentSeq;if(!seq.length)return;
   const ac=getAC(),beat=60/getTempo(),meter=getMeter();
   playing=true;document.getElementById('play-ind').classList.add('on');document.getElementById('btn-play').disabled=true;
   let t=ac.currentTime+.1;
@@ -450,7 +450,7 @@ function playRhythm(seq){
 }
 
 function playMetro(){
-  if(playing)return;const ac=getAC(),beat=60/getTempo(),meter=getMeter(),bars=getBars();
+  if(playing||!samplerReady)return;const ac=getAC(),beat=60/getTempo(),meter=getMeter(),bars=getBars();
   playing=true;document.getElementById('btn-metro').disabled=true;
   let t=ac.currentTime+.1;
   for(let b=0;b<bars;b++)for(let i=0;i<meter;i++){click(t,i===0);setTimeout(flashM,(t-ac.currentTime)*1000);t+=beat;}
@@ -459,7 +459,7 @@ function playMetro(){
 function flashM(){const d=document.getElementById('metro-dot');d.classList.remove('beat');void d.offsetWidth;d.classList.add('beat');}
 
 function playDemo(){
-  if(playing)return;if(!currentSeq.length)return;
+  if(playing||!samplerReady)return;if(!currentSeq.length)return;
   const ac=getAC(),beat=60/getTempo(),meter=getMeter(),bars=getBars();
   const totalBeats=meter*bars;
   const noteOnsets=[];let cursor=0;
@@ -496,7 +496,7 @@ function playDemo(){
 // ═══════════════════════════════════════════════════════════
 function activeGroups(){return GROUPS.filter(g=>document.getElementById('tog-'+g.id)?.checked);}
 
-function generate(){
+async function generate(){
   const meter=getMeter(),bars=getBars(),active=activeGroups(),target=meter*bars;
   if(!active.filter(g=>g.cat!=='silences').length){alert('Activez au moins une figure !');return;}
   const seq=[];let bb=0,total=0;
@@ -510,8 +510,8 @@ function generate(){
     if(Math.abs(bb-meter)<.001)bb=0;else if(bb>meter)bb=bb%meter;
   }
   currentSeq=seq;revealed=false;renderStaff(true);resetAns();updateBL();
-  document.getElementById('ans-panel').style.display='block';
   document.getElementById('btn-play').disabled=false;document.getElementById('btn-reveal').disabled=false;document.getElementById('btn-metro').disabled=false;document.getElementById('btn-demo').disabled=false;
+  await ensureSampler();
   setTimeout(playRhythm,400);
 }
 
@@ -644,9 +644,6 @@ document.addEventListener('keydown',e=>{
 document.addEventListener('change',e=>{if(e.target.id?.startsWith('tog-'))buildKbd();});
 
 buildToggles();buildKbd();updateScore();
-
-// Charger Salamander au premier clic Générer
-document.getElementById('btn-generate').addEventListener('click', ensureSampler, {once:true});
 </script>
 </body>
 </html>
