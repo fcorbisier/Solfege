@@ -16,16 +16,16 @@
 :root{--bg:#0e0e12;--surface:#16161e;--surface2:#1e1e2a;--border:#2a2a3a;--accent:#c8a97e;--accent2:#7eb8c8;--text:#e8e4d9;--muted:#6b6880;--success:#7ec87e;--error:#c87e7e;}
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;min-height:100vh;
-  display:flex;flex-direction:column;align-items:center;padding:1.5rem 1rem;
+  display:flex;flex-direction:column;align-items:center;padding:1rem;
   background-image:radial-gradient(ellipse 70% 40% at 15% 5%,rgba(200,169,126,.05) 0%,transparent 60%),
   radial-gradient(ellipse 50% 50% at 85% 95%,rgba(126,184,200,.05) 0%,transparent 60%)}
-header{text-align:center;margin-bottom:1.2rem}
-header h1{font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:400;color:var(--accent);letter-spacing:.02em}
-header p{color:var(--muted);font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;margin-top:.3rem}
+header{text-align:center;margin-bottom:.8rem}
+header h1{font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:400;color:var(--accent);letter-spacing:.02em}
+header p{color:var(--muted);font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;margin-top:.25rem}
 /* Two-column layout */
-.layout{width:100%;max-width:1200px;display:grid;grid-template-columns:360px 1fr;gap:1.2rem;align-items:start}
-.col-left{display:flex;flex-direction:column;gap:1.2rem}
-.col-right{display:flex;flex-direction:column;gap:1.2rem}
+.layout{width:100%;max-width:1200px;display:grid;grid-template-columns:320px 1fr;gap:1rem;align-items:start}
+.col-left{display:flex;flex-direction:column;gap:1rem}
+.col-right{display:flex;flex-direction:column;gap:1rem}
 /* Loading overlay */
 #loading{position:fixed;inset:0;background:rgba(14,14,18,.95);display:flex;flex-direction:column;
   align-items:center;justify-content:center;gap:1rem;z-index:999;display:none}
@@ -33,22 +33,23 @@ header p{color:var(--muted);font-size:.7rem;letter-spacing:.14em;text-transform:
 .load-bar-wrap{width:240px;height:3px;background:#2a2a3a;border-radius:2px;overflow:hidden}
 .load-bar{height:100%;width:0%;background:var(--accent);border-radius:2px;transition:width .3s}
 .load-icon{font-size:2.5rem}
-.panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.4rem}
-.pt{font-size:.62rem;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);margin-bottom:1rem;display:flex;align-items:center;gap:.5rem}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1rem}
+.pt{font-size:.6rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:.75rem;display:flex;align-items:center;gap:.5rem}
 .pt::after{content:'';flex:1;height:1px;background:var(--border)}
-.cfg{display:flex;flex-wrap:wrap;gap:1rem}
-.cg{flex:1;min-width:130px}
+.cfg{display:flex;flex-wrap:wrap;gap:.75rem}
+.cg{flex:1;min-width:120px}
 .cg label{display:block;font-size:.68rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.5rem}
 select,input[type=range]{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:.85rem;padding:.45rem .7rem;border-radius:6px;outline:none;cursor:pointer;transition:border-color .2s}
 select:hover,select:focus{border-color:var(--accent)}
 select option{background:var(--surface2)}
 input[type=range]{padding:.2rem 0;accent-color:var(--accent)}
 .rl{display:flex;justify-content:space-between;font-size:.62rem;color:var(--muted);margin-top:.2rem}
-.fig-section{display:flex;flex-direction:column;gap:.35rem;margin-bottom:.8rem}
-.fig-section-lbl{font-size:.58rem;color:var(--muted);letter-spacing:.14em;text-transform:uppercase}
-.fig-row{display:flex;gap:.4rem;flex-wrap:wrap}
+.fig-section{display:contents} /* supprime le stacking vertical */
+.fig-section-lbl{display:none} /* cache les labels de catégorie */
+.fig-row{display:contents} /* les items vont directement dans le flex parent */
+#fig-toggles{display:flex;flex-wrap:wrap;gap:.3rem}
 .ftog input{display:none}
-.ftog label{display:flex;flex-direction:column;align-items:center;gap:.3rem;padding:.4rem .5rem;border-radius:8px;border:2px solid var(--border);cursor:pointer;font-size:.55rem;color:var(--muted);transition:all .15s;user-select:none;min-width:48px;text-align:center;line-height:1.3}
+.ftog label{display:flex;flex-direction:column;align-items:center;gap:.2rem;padding:.25rem .35rem;border-radius:6px;border:1.5px solid var(--border);cursor:pointer;font-size:.48rem;color:var(--muted);transition:all .12s;user-select:none;min-width:38px;text-align:center;line-height:1.2}
 .ftog input:checked+label{border-color:var(--accent);color:var(--accent);background:rgba(200,169,126,.08)}
 .staff-wrap{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:1rem .8rem;overflow-x:auto;min-height:115px}
 .staff{display:flex;align-items:flex-end;gap:0;min-height:105px;padding-bottom:4px}
@@ -125,7 +126,7 @@ input[type=range]{padding:.2rem 0;accent-color:var(--accent)}
 </div>
 <header>
   <h1>Dictée de Rythme</h1>
-  <p>Steinway Grand Piano · Entraînement à l'oreille rythmique · <span style="color:var(--border)">v1.6</span></p>
+  <p>Steinway Grand Piano · Entraînement à l'oreille rythmique · <span style="color:var(--border)">v1.7</span></p>
 </header>
 <div class="layout">
 
@@ -639,17 +640,19 @@ function buildToggles(){
   const el=document.getElementById('fig-toggles');el.innerHTML='';
   CATS.forEach(cat=>{
     const cg=GROUPS.filter(g=>g.cat===cat.id);if(!cg.length)return;
-    const sec=document.createElement('div');sec.className='fig-section';
-    const lbl=document.createElement('div');lbl.className='fig-section-lbl';lbl.textContent=cat.label;
-    const row=document.createElement('div');row.className='fig-row';
+    // Séparateur discret entre catégories
+    if(el.children.length>0){
+      const sep=document.createElement('div');
+      sep.style.cssText='width:1px;height:36px;background:var(--border);align-self:center;margin:0 .1rem;opacity:.5';
+      el.appendChild(sep);
+    }
     cg.forEach(grp=>{
       const wrap=document.createElement('div');wrap.className='ftog';
       const col=grp.cat==='silences'?'var(--accent2)':'var(--text)';
       wrap.innerHTML=`<input type="checkbox" id="tog-${grp.id}" ${DEFAULT_ON.has(grp.id)?'checked':''}>
-        <label for="tog-${grp.id}">${svgNote(grp.id,col,42,56)}<span>${grp.label}</span></label>`;
-      row.appendChild(wrap);
+        <label for="tog-${grp.id}">${svgNote(grp.id,col,32,44)}<span>${grp.label}</span></label>`;
+      el.appendChild(wrap);
     });
-    sec.appendChild(lbl);sec.appendChild(row);el.appendChild(sec);
   });
 }
 
