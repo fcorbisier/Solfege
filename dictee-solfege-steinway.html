@@ -132,7 +132,7 @@
 
 <header>
   <h1>Dictée de Solfège</h1>
-  <p>Steinway Grand Piano · Entraînement à l'oreille · <span style="color:var(--border)">v2.3</span></p>
+  <p>Steinway Grand Piano · Entraînement à l'oreille · <span style="color:var(--border)">v2.4</span></p>
 </header>
 
 <div class="layout">
@@ -226,7 +226,34 @@
         <div class="ba"></div><div class="ba"></div><div class="ba"></div><div class="ba"></div>
       </div>
     </div>
-    <div class="seq-display" id="seq-display"><span class="hint">Générez une séquence pour commencer</span></div>
+    <!-- Portée musicale SVG -->
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.75rem;overflow-x:auto">
+      <svg id="staff-svg" width="100%" height="120" viewBox="0 0 600 120" preserveAspectRatio="xMinYMid meet" style="display:block;min-width:300px">
+        <!-- Fond blanc pour la portée -->
+        <rect x="0" y="0" width="600" height="120" fill="transparent"/>
+        <!-- 5 lignes de portée -->
+        <g id="staff-lines" stroke="var(--muted)" stroke-width="1" opacity=".5">
+          <line x1="50" y1="30" x2="590" y2="30"/>
+          <line x1="50" y1="42" x2="590" y2="42"/>
+          <line x1="50" y1="54" x2="590" y2="54"/>
+          <line x1="50" y1="66" x2="590" y2="66"/>
+          <line x1="50" y1="78" x2="590" y2="78"/>
+        </g>
+        <!-- Barre de début -->
+        <line x1="50" y1="30" x2="50" y2="78" stroke="var(--text)" stroke-width="2" opacity=".6"/>
+        <!-- Clé de Sol -->
+        <g id="treble-clef" transform="translate(52,12)" fill="var(--text)" opacity=".8">
+          <text font-size="72" font-family="serif" y="72" fill="var(--text)">𝄞</text>
+        </g>
+        <!-- Notes générées -->
+        <g id="staff-notes"></g>
+        <!-- Message vide -->
+        <text id="staff-hint" x="300" y="60" text-anchor="middle" font-size="12"
+          font-family="DM Mono,monospace" fill="var(--muted)" font-style="italic">
+          Générez une séquence pour commencer
+        </text>
+      </svg>
+    </div>
     <div id="melody-progress" style="font-size:.68rem;color:var(--accent);margin-top:.4rem;min-height:1rem"></div>
     <div class="controls">
       <button class="btn btn-p" id="btn-generate" onclick="generateSequence()">⟳ Générer</button>
@@ -372,24 +399,28 @@ function playSeq(s) {
 
   const bpm  = +document.getElementById('tempo').value;
   const beat = 60 / bpm;
-  const noteEls = document.querySelectorAll('.sn');
   const mode = document.getElementById('mode').value;
 
+  function highlightNote(idx, on) {
+    const staffNotes = document.querySelectorAll('.staff-note');
+    staffNotes.forEach((el,i) => {
+      el.style.filter = (on && i===idx) ? 'drop-shadow(0 0 5px var(--accent))' : '';
+    });
+  }
+
   if (mode === 'chord' || mode === 'interval-sim') {
-    // Arpège rapide puis accord simultané
     s.forEach((note, i) => {
       setTimeout(() => {
-        noteEls[i]?.classList.add('active');
+        highlightNote(i, true);
         playPianoNote(note, octave, '4n');
       }, i * 150);
     });
     setTimeout(() => {
-      noteEls.forEach(el => el.classList.remove('active'));
-      noteEls.forEach(el => el.classList.add('active'));
+      document.querySelectorAll('.staff-note').forEach(el => el.style.filter='drop-shadow(0 0 5px var(--accent))');
       playPianoChord(s, octave, '2n');
     }, s.length * 150 + 250);
     setTimeout(() => {
-      noteEls.forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.staff-note').forEach(el => el.style.filter='');
       document.getElementById('play-ind').classList.remove('on');
       document.getElementById('btn-play').disabled = false;
       playing = false;
@@ -397,14 +428,14 @@ function playSeq(s) {
   } else {
     s.forEach((note, i) => {
       setTimeout(() => {
-        noteEls.forEach(el => el.classList.remove('active'));
-        noteEls[i]?.classList.add('active');
+        document.querySelectorAll('.staff-note').forEach(el => el.style.filter='');
+        highlightNote(i, true);
         playPianoNote(note, octave, beat * 0.85 + 's');
       }, i * beat * 1000);
     });
     const totalMs = s.length * beat * 1000 + 800;
     setTimeout(() => {
-      document.querySelectorAll('.sn').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.staff-note').forEach(el => el.style.filter='');
       document.getElementById('play-ind').classList.remove('on');
       document.getElementById('btn-play').disabled = false;
       playing = false;
@@ -619,19 +650,111 @@ function loadCustom() {
   setTimeout(playSeq, 300);
 }
 
-// ── Render ─────────────────────────────────────────────────────────────────────
-function renderSeq(hide) {
-  const el = document.getElementById('seq-display');
-  el.innerHTML = '';
-  seq.forEach(note => {
-    const s = document.createElement('span');
-    s.className = 'sn' + (hide && !revealed ? ' blurred' : '');
-    s.textContent = cap(note);
-    s.style.color = COLORS[note];
-    el.appendChild(s);
-  });
+// ── Portée musicale SVG ────────────────────────────────────────────────────────
+// Lignes de portée : y=30(ligne5/haut) à y=78(ligne1/bas), espacement=12px
+// Position Y de chaque note (clé de Sol, octave 4-5) :
+// Chaque degré = 6px (demi-espace)
+// Ligne 1=Mi4(y=78), Ligne2=Sol4(y=66), Ligne3=Si4(y=54), Ligne4=Ré5(y=42), Ligne5=Fa5(y=30)
+const NOTE_Y = {
+  // Octave 4
+  'do4':  90,   // Do4 — ligne supplémentaire en bas
+  'ré4':  84,   // Ré4 — sous ligne 1
+  'mi4':  78,   // Mi4 — ligne 1
+  'fa4':  72,   // Fa4 — espace 1
+  'sol4': 66,   // Sol4 — ligne 2
+  'la4':  60,   // La4 — espace 2
+  'si4':  54,   // Si4 — ligne 3
+  // Octave 5
+  'do5':  48,   // Do5 — espace 3
+  'ré5':  42,   // Ré5 — ligne 4
+  'mi5':  36,   // Mi5 — espace 4
+  'fa5':  30,   // Fa5 — ligne 5
+  'sol5': 24,   // Sol5 — au-dessus ligne 5
+};
+
+function getNoteY(note, oct) {
+  const key = note + oct;
+  return NOTE_Y[key] ?? 54; // défaut : milieu portée
 }
-function revealAll() { revealed = true; renderSeq(false); }
+
+function needsLedgerLine(note, oct) {
+  // Lignes supplémentaires nécessaires
+  const y = getNoteY(note, oct);
+  const lines = [];
+  if (y >= 90) lines.push(90);  // Do4 — ligne supplémentaire bas
+  if (y <= 24) lines.push(24);  // Sol5 — ligne supplémentaire haut
+  return lines;
+}
+
+function stemDirection(note, oct) {
+  // Hampe vers le bas si note >= Si4 (milieu portée), vers le haut sinon
+  const y = getNoteY(note, oct);
+  return y <= 54 ? 'down' : 'up';
+}
+
+function renderNote(note, oct, x, hidden, active, result) {
+  const y    = getNoteY(note, oct);
+  const dir  = stemDirection(note, oct);
+  const col  = hidden ? 'var(--muted)' : result === 'ok' ? 'var(--success)' : result === 'ko' ? 'var(--error)' : 'var(--text)';
+  const glow = active ? `filter:drop-shadow(0 0 4px var(--accent))` : '';
+  let svg = `<g style="${glow}" class="staff-note" data-note="${note}">`;
+
+  // Lignes supplémentaires
+  const ledger = needsLedgerLine(note, oct);
+  ledger.forEach(ly => {
+    svg += `<line x1="${x-10}" y1="${ly}" x2="${x+10}" y2="${ly}" stroke="${col}" stroke-width="1.2" opacity=".6"/>`;
+  });
+
+  if (hidden) {
+    // Note cachée : point d'interrogation
+    svg += `<ellipse cx="${x}" cy="${y}" rx="7" ry="5" fill="none" stroke="var(--muted)" stroke-width="1.5" opacity=".3"/>`;
+    svg += `<text x="${x}" y="${y+4}" text-anchor="middle" font-size="10" fill="var(--muted)" opacity=".4">?</text>`;
+  } else {
+    // Tête de note (ellipse inclinée)
+    svg += `<ellipse cx="${x}" cy="${y}" rx="7" ry="5" transform="rotate(-15,${x},${y})" fill="${col}"/>`;
+
+    // Hampe
+    if (dir === 'up') {
+      svg += `<line x1="${x+6}" y1="${y-2}" x2="${x+6}" y2="${y-32}" stroke="${col}" stroke-width="1.5"/>`;
+    } else {
+      svg += `<line x1="${x-6}" y1="${y+2}" x2="${x-6}" y2="${y+32}" stroke="${col}" stroke-width="1.5"/>`;
+    }
+
+    // Nom de la note en dessous
+    svg += `<text x="${x}" y="108" text-anchor="middle" font-size="9" font-family="DM Mono,monospace" fill="${col}" opacity=".7">${cap(note)}</text>`;
+  }
+
+  svg += `</g>`;
+  return svg;
+}
+
+function renderSeq(hide, results) {
+  const hint = document.getElementById('staff-hint');
+  if (hint) hint.style.display = 'none';
+  const notesEl = document.getElementById('staff-notes');
+  if (!notesEl) return;
+
+  const clefWidth = 55;
+  const startX    = 50 + clefWidth;
+  const endX      = 590;
+  const available = endX - startX - 10;
+  const spacing   = Math.min(60, available / Math.max(seq.length, 1));
+
+  let svg = '';
+  seq.forEach((note, i) => {
+    const x      = startX + spacing * 0.5 + i * spacing;
+    const hidden = hide && !revealed;
+    const res    = results ? (results[i] ? 'ok' : 'ko') : null;
+    svg += renderNote(note, octave, x, hidden, false, res);
+  });
+
+  notesEl.innerHTML = svg;
+}
+
+function revealAll() {
+  revealed = true;
+  renderSeq(false);
+}
 function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
 // ── Interface réponse adaptative ───────────────────────────────────────────────
@@ -771,6 +894,7 @@ function checkAnswer() {
     const res   = seq.map((n, i) => n === ans[i]);
     const allOk = res.every(Boolean);
     renderAns(res); revealAll();
+    renderSeq(false, res);
     seq.forEach((n, i) => {
       noteStats[n].seen++; if (!res[i]) noteStats[n].missed++;
       updateWeight(n, res[i]);
@@ -877,6 +1001,7 @@ document.getElementById('mode').onchange = e => {
 document.querySelectorAll('.ob').forEach(b => b.addEventListener('click', () => {
   document.querySelectorAll('.ob').forEach(x => x.classList.remove('sel'));
   b.classList.add('sel'); octave = +b.dataset.oct;
+  if (seq.length) renderSeq(!revealed);
 }));
 
 const KMAP = {d:'do',r:'ré',m:'mi',f:'fa',s:'sol',l:'la',b:'si'};

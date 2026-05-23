@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lecteur de Partitions</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎼</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0e0e12;--surface:#16161e;--surface2:#1e1e2a;--border:#2a2a3a;
+  --accent:#c8a97e;--accent2:#7eb8c8;--text:#e8e4d9;--muted:#6b6880;
+  --success:#7ec87e;--error:#c87e7e;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;min-height:100vh;
+  display:flex;flex-direction:column;align-items:center;padding:1.5rem 1rem;
+  background-image:radial-gradient(ellipse 70% 40% at 10% 5%,rgba(200,169,126,.06) 0%,transparent 60%),
+  radial-gradient(ellipse 50% 50% at 90% 95%,rgba(126,184,200,.06) 0%,transparent 60%)}
+header{text-align:center;margin-bottom:1.2rem}
+header h1{font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:400;color:var(--accent)}
+header p{color:var(--muted);font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;margin-top:.3rem}
+.layout{width:100%;max-width:1200px;display:grid;grid-template-columns:280px 1fr;gap:1.2rem;align-items:start}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.2rem}
+.pt{font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);
+  margin-bottom:.9rem;display:flex;align-items:center;gap:.5rem}
+.pt::after{content:'';flex:1;height:1px;background:var(--border)}
+.col-left{display:flex;flex-direction:column;gap:1.2rem}
+.col-right{display:flex;flex-direction:column;gap:1.2rem}
+
+/* Bibliothèque */
+.score-list{display:flex;flex-direction:column;gap:.4rem;max-height:220px;overflow-y:auto}
+.score-item{padding:.55rem .75rem;border-radius:7px;border:1px solid var(--border);
+  background:var(--surface2);cursor:pointer;font-size:.78rem;transition:all .15s;
+  display:flex;align-items:center;justify-content:space-between;gap:.5rem}
+.score-item:hover{border-color:var(--accent)}
+.score-item.active{border-color:var(--accent);background:rgba(200,169,126,.08);color:var(--accent)}
+.score-item .score-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.score-item .score-del{color:var(--muted);font-size:.7rem;cursor:pointer;flex-shrink:0;padding:.1rem .3rem}
+.score-item .score-del:hover{color:var(--error)}
+.empty-lib{color:var(--muted);font-size:.72rem;font-style:italic;padding:.5rem 0}
+
+/* Boutons */
+.btn{padding:.55rem 1rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);
+  color:var(--text);font-family:'DM Mono',monospace;font-size:.75rem;letter-spacing:.04em;
+  cursor:pointer;transition:all .14s;display:inline-flex;align-items:center;gap:.4rem}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn:active{transform:scale(.97)}
+.btn-p{background:var(--accent);color:var(--bg);border-color:var(--accent);font-weight:500}
+.btn-p:hover{background:#d4b88e;color:var(--bg)}
+.btn-sm{padding:.38rem .75rem;font-size:.7rem}
+.btn:disabled{opacity:.35;cursor:not-allowed;pointer-events:none}
+.btn-danger{border-color:var(--error);color:var(--error)}
+.btn-danger:hover{background:rgba(200,126,126,.1)}
+.btn-row{display:flex;gap:.5rem;flex-wrap:wrap}
+
+/* Métadonnées partition */
+.meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+.meta-group label{display:block;font-size:.62rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.35rem}
+input[type=text],select,input[type=number]{width:100%;background:var(--surface2);border:1px solid var(--border);
+  color:var(--text);font-family:'DM Mono',monospace;font-size:.82rem;padding:.42rem .65rem;
+  border-radius:6px;outline:none;transition:border-color .2s}
+input[type=text]:focus,select:focus{border-color:var(--accent)}
+select option{background:var(--surface2)}
+input[type=range]{width:100%;accent-color:var(--accent);padding:.2rem 0}
+.rl{display:flex;justify-content:space-between;font-size:.6rem;color:var(--muted);margin-top:.2rem}
+
+/* Portée SVG */
+.staff-container{background:var(--surface2);border:1px solid var(--border);border-radius:10px;
+  padding:.75rem;overflow-x:auto;min-height:130px;position:relative}
+#score-svg{display:block;min-width:400px}
+
+/* Saisie de notes */
+.note-kbd{display:flex;gap:.35rem;flex-wrap:wrap;margin-bottom:.6rem}
+.note-btn{padding:.45rem .7rem;border-radius:6px;border:1px solid var(--border);
+  background:var(--surface2);font-family:'DM Mono',monospace;font-size:.82rem;font-weight:500;
+  cursor:pointer;transition:all .12s}
+.note-btn:hover{transform:translateY(-2px)}
+.note-btn:active{transform:scale(.95)}
+
+/* Durées */
+.dur-grid{display:flex;gap:.35rem;flex-wrap:wrap}
+.dur-btn{display:flex;flex-direction:column;align-items:center;gap:.2rem;padding:.35rem .5rem;
+  border-radius:6px;border:1.5px solid var(--border);background:var(--surface2);
+  cursor:pointer;transition:all .12s;min-width:44px;font-size:.5rem;color:var(--muted)}
+.dur-btn svg{display:block}
+.dur-btn:hover{border-color:var(--accent);color:var(--accent)}
+.dur-btn.selected{border-color:var(--accent);background:rgba(200,169,126,.1);color:var(--accent)}
+
+/* Contrôles lecture */
+.play-controls{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap}
+.play-mode{display:flex;gap:.35rem}
+.pm-btn{padding:.38rem .7rem;border-radius:6px;border:1px solid var(--border);
+  background:var(--surface2);font-size:.7rem;cursor:pointer;transition:all .12s;color:var(--muted)}
+.pm-btn.active{border-color:var(--accent2);color:var(--accent2);background:rgba(126,184,200,.08)}
+
+/* Barre de progression */
+.progress-bar{height:3px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:.5rem}
+.progress-fill{height:100%;width:0%;background:var(--accent);border-radius:2px;transition:width .1s linear}
+
+/* Note active dans l'éditeur */
+.note-entry{display:flex;align-items:center;gap:.5rem;padding:.5rem;background:var(--surface2);
+  border:1px solid var(--accent);border-radius:8px;font-size:.75rem;color:var(--accent)}
+
+/* Import/Export */
+.import-area{width:100%;min-height:80px;background:var(--surface2);border:1px solid var(--border);
+  color:var(--text);font-family:'DM Mono',monospace;font-size:.72rem;padding:.6rem;
+  border-radius:6px;outline:none;resize:vertical;transition:border-color .2s}
+.import-area:focus{border-color:var(--accent)}
+
+/* Indicateurs */
+@keyframes pulse{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.8)}}
+.play-ind{display:none;align-items:center;gap:3px}
+.play-ind.on{display:flex}
+.ba{width:3px;height:12px;border-radius:2px;background:var(--accent);animation:pulse .55s ease-in-out infinite}
+.ba:nth-child(2){animation-delay:.13s}.ba:nth-child(3){animation-delay:.26s}
+
+/* Loading */
+#loading{position:fixed;inset:0;background:rgba(14,14,18,.95);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:1rem;z-index:999;display:none}
+#loading p{color:var(--accent);font-size:.85rem;letter-spacing:.1em}
+.load-bar-wrap{width:240px;height:3px;background:#2a2a3a;border-radius:2px;overflow:hidden}
+.load-bar{height:100%;width:0%;background:var(--accent);border-radius:2px;transition:width .3s}
+
+/* Responsive */
+@media(max-width:768px){
+  .layout{grid-template-columns:1fr}
+  .col-right{order:-1}
+  .col-left{order:1}
+}
+</style>
+</head>
+<body>
+
+<div id="loading" style="display:none">
+  <div style="font-size:2.5rem">🎹</div>
+  <p id="load-msg">Chargement du piano Steinway…</p>
+  <div class="load-bar-wrap"><div class="load-bar" id="load-bar"></div></div>
+</div>
+
+<header>
+  <h1>Lecteur de Partitions</h1>
+  <p>Piano Steinway · Voix · v1.0</p>
+</header>
+
+<div class="layout">
+<div class="col-left">
+
+  <!-- Bibliothèque -->
+  <div class="panel">
+    <div class="pt">Bibliothèque</div>
+    <div class="score-list" id="score-list">
+      <div class="empty-lib">Aucune partition sauvegardée</div>
+    </div>
+    <div class="btn-row" style="margin-top:.75rem">
+      <button class="btn btn-p btn-sm" onclick="newScore()">+ Nouvelle</button>
+      <button class="btn btn-sm" onclick="showImport()">⬇ Importer</button>
+      <button class="btn btn-sm" onclick="exportScore()">⬆ Exporter</button>
+    </div>
+  </div>
+
+  <!-- Métadonnées -->
+  <div class="panel">
+    <div class="pt">Propriétés</div>
+    <div style="display:flex;flex-direction:column;gap:.75rem">
+      <div><label style="font-size:.62rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:.35rem">Titre</label>
+        <input type="text" id="score-title" placeholder="Ex: Leçon 19 — A" oninput="markDirty()">
+      </div>
+      <div class="meta-grid">
+        <div><label style="font-size:.62rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:.35rem">Mesure</label>
+          <select id="score-meter" onchange="markDirty()">
+            <option value="2">2/4</option>
+            <option value="3">3/4</option>
+            <option value="4" selected>4/4</option>
+          </select>
+        </div>
+        <div><label style="font-size:.62rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:.35rem">Tempo</label>
+          <input type="range" id="score-tempo" min="40" max="200" value="80" oninput="document.getElementById('tempo-val').textContent=this.value;markDirty()">
+          <div class="rl"><span>40</span><span id="tempo-val">80</span><span>200</span></div>
+        </div>
+      </div>
+      <div class="meta-grid">
+        <div><label style="font-size:.62rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:.35rem">Octave</label>
+          <select id="score-octave" onchange="markDirty()">
+            <option value="3">3 (grave)</option>
+            <option value="4" selected>4 (médium)</option>
+            <option value="5">5 (aigu)</option>
+          </select>
+        </div>
+        <div><label style="font-size:.62rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:.35rem">Clé</label>
+          <select id="score-clef">
+            <option value="sol">Clé de Sol</option>
+            <option value="perc">Percussion</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-p btn-sm" onclick="saveScore()">💾 Sauvegarder</button>
+      <div id="save-ind" style="font-size:.6rem;color:var(--muted);opacity:0;transition:opacity .5s">✓ Sauvegardé</div>
+    </div>
+  </div>
+
+  <!-- Import JSON -->
+  <div class="panel" id="import-panel" style="display:none">
+    <div class="pt">Importer JSON</div>
+    <textarea class="import-area" id="import-json" placeholder='{"title":"Ma partition","meter":2,"tempo":80,"notes":[{"note":"do","oct":4,"dur":"noire"},...]}'></textarea>
+    <div class="btn-row" style="margin-top:.6rem">
+      <button class="btn btn-p btn-sm" onclick="importJSON()">⬇ Importer</button>
+      <button class="btn btn-sm" onclick="document.getElementById('import-panel').style.display='none'">Annuler</button>
+    </div>
+    <div id="import-err" style="font-size:.7rem;color:var(--error);margin-top:.4rem"></div>
+  </div>
+
+</div><!-- /col-left -->
+
+<div class="col-right">
+
+  <!-- Portée -->
+  <div class="panel">
+    <div class="pt">
+      Partition
+      <span id="note-count" style="font-size:.65rem;color:var(--muted);margin-left:.3rem"></span>
+      <div class="play-ind" id="play-ind">
+        <div class="ba"></div><div class="ba"></div><div class="ba"></div>
+      </div>
+    </div>
+    <div class="staff-container">
+      <svg id="score-svg" height="120" viewBox="0 0 800 120" preserveAspectRatio="xMinYMid meet">
+        <g id="staff-bg"></g>
+        <g id="staff-clef"></g>
+        <g id="staff-notes"></g>
+        <text id="staff-hint" x="400" y="65" text-anchor="middle" font-size="13"
+          font-family="DM Mono,monospace" fill="var(--muted)" font-style="italic">
+          Créez ou chargez une partition
+        </text>
+      </svg>
+    </div>
+    <div class="progress-bar" style="margin-top:.6rem"><div class="progress-fill" id="progress-fill"></div></div>
+
+    <!-- Contrôles lecture -->
+    <div class="play-controls" style="margin-top:.75rem">
+      <button class="btn btn-p" id="btn-play" onclick="togglePlay()">▶ Jouer</button>
+      <button class="btn btn-sm" id="btn-stop" onclick="stopPlay()" disabled>⏹ Stop</button>
+      <button class="btn btn-sm" onclick="rewind()">⏮ Début</button>
+      <div class="play-mode">
+        <button class="pm-btn active" id="pm-both"   onclick="setPlayMode('both')">🎹+🗣</button>
+        <button class="pm-btn"        id="pm-piano"  onclick="setPlayMode('piano')">🎹</button>
+        <button class="pm-btn"        id="pm-voice"  onclick="setPlayMode('voice')">🗣</button>
+      </div>
+    </div>
+    <div id="current-note-display" style="font-size:1.1rem;font-family:'Playfair Display',serif;color:var(--accent);text-align:center;min-height:1.8rem;margin-top:.4rem"></div>
+  </div>
+
+  <!-- Éditeur -->
+  <div class="panel">
+    <div class="pt">Éditeur de notes</div>
+
+    <!-- Durée sélectionnée -->
+    <div style="margin-bottom:.75rem">
+      <div style="font-size:.6rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.5rem">Durée active</div>
+      <div class="dur-grid" id="dur-grid"></div>
+    </div>
+
+    <!-- Clavier de notes -->
+    <div style="font-size:.6rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.5rem">Ajouter une note</div>
+    <div class="note-kbd" id="note-kbd"></div>
+
+    <!-- Silences -->
+    <div style="font-size:.6rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.5rem">Silence</div>
+    <div class="btn-row" style="margin-bottom:.75rem">
+      <button class="btn btn-sm" onclick="addRest()">𝄽 Ajouter silence</button>
+    </div>
+
+    <!-- Actions sur la partition -->
+    <div class="btn-row">
+      <button class="btn btn-sm" onclick="undoNote()">↩ Annuler</button>
+      <button class="btn btn-sm" onclick="clearScore()">✗ Vider</button>
+      <button class="btn btn-sm" style="color:var(--muted);font-size:.65rem" id="cursor-info"></button>
+    </div>
+  </div>
+
+</div><!-- /col-right -->
+</div><!-- /layout -->
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// DONNÉES
+// ═══════════════════════════════════════════════════════════
+const NOTES = ['do','ré','mi','fa','sol','la','si'];
+const NOTE_COLORS = {
+  do:'#e07070',ré:'#e09550',mi:'#d4b840',fa:'#70b870',
+  sol:'#5090d0',la:'#8060c0',si:'#c060a0'
+};
+const NOTE_MAP = {
+  do:{3:'C3',4:'C4',5:'C5'},ré:{3:'D3',4:'D4',5:'D5'},mi:{3:'E3',4:'E4',5:'E5'},
+  fa:{3:'F3',4:'F4',5:'F5'},sol:{3:'G3',4:'G4',5:'G5'},la:{3:'A3',4:'A4',5:'A5'},
+  si:{3:'B3',4:'B4',5:'B5'},
+};
+
+// Durées : id, label, beats, SVG mini
+const DURATIONS = [
+  {id:'ronde',    label:'Ronde',    beats:4,   sym:'𝅝'},
+  {id:'blanche',  label:'Blanche',  beats:2,   sym:'𝅗𝅥'},
+  {id:'noire',    label:'Noire',    beats:1,   sym:'♩'},
+  {id:'croche',   label:'Croche',   beats:0.5, sym:'♪'},
+  {id:'dcr',      label:'2× croche',beats:0.25,sym:'𝅘𝅥𝅯'},
+  {id:'noire-pt', label:'Noire pt.',beats:1.5, sym:'♩.'},
+  {id:'blanche-pt',label:'Blanche pt.',beats:3,sym:'𝅗𝅥.'},
+];
+
+// Position Y sur la portée (clé de Sol, 5 lignes y=30..78, espacement=12)
+const NOTE_Y_4 = {do:90,ré:84,mi:78,fa:72,sol:66,la:60,si:54};
+const NOTE_Y_5 = {do:48,ré:42,mi:36,fa:30,sol:24,la:18,si:12};
+const NOTE_Y_3 = {do:114,ré:108,mi:102,fa:96,sol:90,la:84,si:78};
+function getNoteY(note,oct){
+  if(oct===5)return NOTE_Y_5[note]??36;
+  if(oct===3)return NOTE_Y_3[note]??90;
+  return NOTE_Y_4[note]??66;
+}
+
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+let library   = {};   // {id: {title,meter,tempo,notes:[{note,oct,dur,isRest}]}}
+let currentId = null; // id de la partition active
+let currentScore = {title:'',meter:4,tempo:80,notes:[]};
+let selectedDur  = 'noire';
+let isDirty      = false;
+let playPos      = 0;   // index de la note en cours de lecture
+let isPlaying    = false;
+let playTimer    = null;
+let sampler      = null;
+let samplerReady = false;
+let Tone         = null;
+
+// ═══════════════════════════════════════════════════════════
+// AUDIO — Tone.js + Salamander (chargement dynamique)
+// ═══════════════════════════════════════════════════════════
+async function loadTone(){
+  if(Tone)return;
+  await new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js';
+    s.onload=res;s.onerror=rej;document.head.appendChild(s);
+  });
+  Tone=window.Tone;
+}
+
+async function ensureSampler(){
+  if(samplerReady)return;
+  const ld=document.getElementById('loading');
+  ld.style.display='flex';
+  document.getElementById('load-bar').style.width='0%';
+  document.getElementById('load-msg').textContent='Chargement du piano Steinway…';
+  await loadTone();
+  await Tone.start();
+  await new Promise(resolve=>{
+    sampler=new Tone.Sampler({
+      urls:{'A0':'A0.mp3','C1':'C1.mp3','D#1':'Ds1.mp3','F#1':'Fs1.mp3',
+        'A1':'A1.mp3','C2':'C2.mp3','D#2':'Ds2.mp3','F#2':'Fs2.mp3',
+        'A2':'A2.mp3','C3':'C3.mp3','D#3':'Ds3.mp3','F#3':'Fs3.mp3',
+        'A3':'A3.mp3','C4':'C4.mp3','D#4':'Ds4.mp3','F#4':'Fs4.mp3',
+        'A4':'A4.mp3','C5':'C5.mp3','D#5':'Ds5.mp3','F#5':'Fs5.mp3',
+        'A5':'A5.mp3','C6':'C6.mp3'},
+      baseUrl:'https://tonejs.github.io/audio/salamander/',release:1,
+    }).toDestination();
+    let pct=0;
+    const iv=setInterval(()=>{pct=Math.min(pct+2,88);document.getElementById('load-bar').style.width=pct+'%';if(pct>=88)clearInterval(iv);},100);
+    Tone.loaded().then(()=>{
+      clearInterval(iv);
+      document.getElementById('load-bar').style.width='100%';
+      document.getElementById('load-msg').textContent='🎹 Steinway chargé ✓';
+      setTimeout(()=>{document.getElementById('loading').style.display='none';resolve();},400);
+    }).catch(()=>{document.getElementById('loading').style.display='none';resolve();});
+  });
+  samplerReady=true;
+}
+
+function playNote(note,oct,durBeats){
+  if(!sampler||!sampler.loaded)return;
+  const midiNote=NOTE_MAP[note]?.[oct];
+  if(!midiNote)return;
+  const beatSec=60/parseInt(document.getElementById('score-tempo').value);
+  const durSec=Math.min(durBeats*beatSec*0.9,3);
+  sampler.triggerAttackRelease(midiNote,durSec);
+}
+
+// ═══════════════════════════════════════════════════════════
+// TTS VOIX
+// ═══════════════════════════════════════════════════════════
+let ttsVoice=null;
+function initVoice(){
+  const voices=speechSynthesis.getVoices();
+  ttsVoice=voices.find(v=>v.lang.startsWith('fr')&&v.localService)||
+           voices.find(v=>v.lang.startsWith('fr'))||null;
+}
+speechSynthesis.onvoiceschanged=initVoice;
+setTimeout(initVoice,500);
+
+function speak(text){
+  if(!text||speechSynthesis.speaking)return;
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang='fr-FR';u.rate=1.1;u.pitch=1;
+  if(ttsVoice)u.voice=ttsVoice;
+  speechSynthesis.speak(u);
+}
+function cap(s){return s.charAt(0).toUpperCase()+s.slice(1);}
+
+// ═══════════════════════════════════════════════════════════
+// LECTURE
+// ═══════════════════════════════════════════════════════════
+let playMode='both'; // 'both','piano','voice'
+function setPlayMode(m){
+  playMode=m;
+  ['both','piano','voice'].forEach(k=>{
+    document.getElementById('pm-'+k).classList.toggle('active',k===m);
+  });
+}
+
+async function togglePlay(){
+  if(isPlaying){pausePlay();return;}
+  if(!currentScore.notes.length){alert('Aucune note à jouer.');return;}
+  await ensureSampler();
+  isPlaying=true;
+  document.getElementById('btn-play').textContent='⏸ Pause';
+  document.getElementById('btn-stop').disabled=false;
+  document.getElementById('play-ind').classList.add('on');
+  playNext();
+}
+
+function playNext(){
+  if(!isPlaying)return;
+  const notes=currentScore.notes;
+  if(playPos>=notes.length){stopPlay();return;}
+
+  const n=notes[playPos];
+  const dur=DURATIONS.find(d=>d.id===n.dur)||DURATIONS[2];
+  const beatSec=60/parseInt(document.getElementById('score-tempo').value);
+  const durMs=dur.beats*beatSec*1000;
+
+  // Highlight note sur portée
+  highlightNote(playPos);
+
+  // Afficher le nom
+  const display=document.getElementById('current-note-display');
+  if(n.isRest){
+    display.textContent='𝄽 silence';
+    display.style.color='var(--muted)';
+  } else {
+    display.textContent=cap(n.note)+n.oct;
+    display.style.color=NOTE_COLORS[n.note]||'var(--accent)';
+  }
+
+  // Jouer
+  if(!n.isRest){
+    if(playMode==='both'||playMode==='piano') playNote(n.note,n.oct,dur.beats);
+    if(playMode==='both'||playMode==='voice') speak(cap(n.note));
+  }
+
+  // Progression
+  const pct=((playPos+1)/notes.length)*100;
+  document.getElementById('progress-fill').style.width=pct+'%';
+
+  playPos++;
+  playTimer=setTimeout(playNext, durMs);
+}
+
+function pausePlay(){
+  isPlaying=false;
+  clearTimeout(playTimer);
+  document.getElementById('btn-play').textContent='▶ Jouer';
+  document.getElementById('play-ind').classList.remove('on');
+}
+
+function stopPlay(){
+  isPlaying=false;
+  clearTimeout(playTimer);
+  speechSynthesis.cancel();
+  document.getElementById('btn-play').textContent='▶ Jouer';
+  document.getElementById('btn-stop').disabled=true;
+  document.getElementById('play-ind').classList.remove('on');
+  document.getElementById('current-note-display').textContent='';
+  document.getElementById('progress-fill').style.width='0%';
+  highlightNote(-1);
+  playPos=0;
+}
+
+function rewind(){
+  stopPlay();
+  playPos=0;
+}
+
+function highlightNote(idx){
+  document.querySelectorAll('.score-note').forEach((el,i)=>{
+    el.setAttribute('opacity', i===idx ? '1' : '.85');
+    const ellipse=el.querySelector('ellipse,rect');
+    if(ellipse) ellipse.setAttribute('filter', i===idx ? 'url(#note-glow)' : '');
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// RENDU PORTÉE SVG
+// ═══════════════════════════════════════════════════════════
+const STAFF_Y1=30,STAFF_Y5=78,STAFF_SPACING=12; // 5 lignes
+const CLEF_W=65, MARGIN_L=10, MARGIN_R=20;
+const NOTE_SPACING=52;
+
+function buildStaffSVG(){
+  const notes=currentScore.notes;
+  const svgEl=document.getElementById('score-svg');
+  const meter=parseInt(document.getElementById('score-meter').value)||4;
+
+  // Largeur dynamique
+  const totalNotes=notes.length||1;
+  const w=Math.max(800, MARGIN_L+CLEF_W+totalNotes*NOTE_SPACING+MARGIN_R+40);
+  svgEl.setAttribute('viewBox',`0 0 ${w} 120`);
+  svgEl.setAttribute('width','100%');
+
+  // Defs
+  document.getElementById('staff-bg').innerHTML=`
+    <defs>
+      <filter id="note-glow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    </defs>
+    ${[30,42,54,66,78].map(y=>`<line x1="${MARGIN_L}" y1="${y}" x2="${w-MARGIN_R}" y2="${y}" stroke="var(--muted)" stroke-width="1" opacity=".4"/>`).join('')}
+    <line x1="${MARGIN_L}" y1="30" x2="${MARGIN_L}" y2="78" stroke="var(--text)" stroke-width="2" opacity=".5"/>`;
+
+  // Clé de Sol
+  document.getElementById('staff-clef').innerHTML=
+    `<text x="${MARGIN_L+5}" y="88" font-size="78" font-family="serif" fill="var(--text)" opacity=".75">𝄞</text>
+     <text x="${MARGIN_L+52}" y="44" font-size="16" font-family="Playfair Display,serif" fill="var(--text)" opacity=".6" font-weight="700">${meter}</text>
+     <text x="${MARGIN_L+52}" y="62" font-size="16" font-family="Playfair Display,serif" fill="var(--text)" opacity=".6" font-weight="700">4</text>
+     <line x1="${MARGIN_L+48}" y1="30" x2="${MARGIN_L+48}" y2="78" stroke="var(--text)" stroke-width="1.5" opacity=".4"/>`;
+
+  // Notes
+  const hint=document.getElementById('staff-hint');
+  if(notes.length===0){
+    hint.style.display='block';
+    document.getElementById('staff-notes').innerHTML='';
+    document.getElementById('note-count').textContent='';
+    return;
+  }
+  hint.style.display='none';
+  document.getElementById('note-count').textContent=`${notes.length} note${notes.length>1?'s':''}`;
+
+  let noteSVG='';
+  let barBeat=0;
+  const startX=MARGIN_L+CLEF_W+8;
+
+  notes.forEach((n,i)=>{
+    const x=startX+i*NOTE_SPACING;
+    const dur=DURATIONS.find(d=>d.id===n.dur)||DURATIONS[2];
+    const col=n.isRest?'var(--accent2)':(NOTE_COLORS[n.note]||'var(--text)');
+
+    noteSVG+=`<g class="score-note" data-idx="${i}" opacity=".85" style="cursor:pointer" onclick="removeNote(${i})">`;
+
+    if(n.isRest){
+      // Silence — symbole
+      noteSVG+=`<text x="${x}" y="62" text-anchor="middle" font-size="20" fill="${col}" font-family="serif">${dur.sym}</text>`;
+    } else {
+      const y=getNoteY(n.note,n.oct);
+      const stemUp=y>=54;
+
+      // Ligne supplémentaire Do4
+      if(n.oct===4&&n.note==='do') noteSVG+=`<line x1="${x-10}" y1="90" x2="${x+10}" y2="90" stroke="${col}" stroke-width="1.2" opacity=".6"/>`;
+      if(n.oct===5&&n.note==='do') noteSVG+=`<line x1="${x-10}" y1="48" x2="${x+10}" y2="48" stroke="${col}" stroke-width="1.2" opacity=".6"/>`;
+
+      // Tête de note selon la durée
+      if(n.dur==='ronde'){
+        noteSVG+=`<ellipse cx="${x}" cy="${y}" rx="7" ry="5" transform="rotate(-15,${x},${y})" fill="none" stroke="${col}" stroke-width="1.8"/>`;
+        noteSVG+=`<ellipse cx="${x}" cy="${y}" rx="3" ry="3.5" fill="${col}" transform="rotate(-15,${x},${y})"/>`;
+      } else if(n.dur==='blanche'||n.dur==='blanche-pt'){
+        noteSVG+=`<ellipse cx="${x}" cy="${y}" rx="7" ry="5" transform="rotate(-15,${x},${y})" fill="none" stroke="${col}" stroke-width="1.8"/>`;
+        if(stemUp) noteSVG+=`<line x1="${x+6}" y1="${y-2}" x2="${x+6}" y2="${y-32}" stroke="${col}" stroke-width="1.5"/>`;
+        else       noteSVG+=`<line x1="${x-6}" y1="${y+2}" x2="${x-6}" y2="${y+32}" stroke="${col}" stroke-width="1.5"/>`;
+        if(n.dur==='blanche-pt') noteSVG+=`<circle cx="${x+11}" cy="${y-4}" r="2.2" fill="${col}"/>`;
+      } else {
+        noteSVG+=`<ellipse cx="${x}" cy="${y}" rx="7" ry="5" transform="rotate(-15,${x},${y})" fill="${col}"/>`;
+        if(stemUp){
+          noteSVG+=`<line x1="${x+6}" y1="${y-2}" x2="${x+6}" y2="${y-32}" stroke="${col}" stroke-width="1.5"/>`;
+          if(n.dur==='croche') noteSVG+=`<path d="M${x+6},${y-32} C${x+18},${y-24} ${x+18},${y-14} ${x+6},${y-10}" fill="none" stroke="${col}" stroke-width="1.5"/>`;
+          if(n.dur==='dcr'){
+            noteSVG+=`<path d="M${x+6},${y-32} C${x+18},${y-24} ${x+18},${y-14} ${x+6},${y-10}" fill="none" stroke="${col}" stroke-width="1.5"/>`;
+            noteSVG+=`<path d="M${x+6},${y-26} C${x+18},${y-18} ${x+18},${y-8} ${x+6},${y-4}" fill="none" stroke="${col}" stroke-width="1.5"/>`;
+          }
+        } else {
+          noteSVG+=`<line x1="${x-6}" y1="${y+2}" x2="${x-6}" y2="${y+32}" stroke="${col}" stroke-width="1.5"/>`;
+          if(n.dur==='croche') noteSVG+=`<path d="M${x-6},${y+32} C${x+6},${y+24} ${x+6},${y+14} ${x-6},${y+10}" fill="none" stroke="${col}" stroke-width="1.5"/>`;
+          if(n.dur==='dcr'){
+            noteSVG+=`<path d="M${x-6},${y+32} C${x+6},${y+24} ${x+6},${y+14} ${x-6},${y+10}" fill="none" stroke="${col}" stroke-width="1.5"/>`;
+            noteSVG+=`<path d="M${x-6},${y+26} C${x+6},${y+18} ${x+6},${y+8} ${x-6},${y+4}" fill="none" stroke="${col}" stroke-width="1.5"/>`;
+          }
+        }
+        if(n.dur==='noire-pt') noteSVG+=`<circle cx="${x+11}" cy="${y-4}" r="2.2" fill="${col}"/>`;
+      }
+      // Nom de la note
+      noteSVG+=`<text x="${x}" y="108" text-anchor="middle" font-size="9" font-family="DM Mono,monospace" fill="${col}" opacity=".6">${cap(n.note)}</text>`;
+    }
+
+    noteSVG+=`</g>`;
+
+    // Barre de mesure
+    barBeat+=dur.beats;
+    if(Math.abs(barBeat%meter)<0.001&&i<notes.length-1){
+      barBeat=0;
+      const bx=x+NOTE_SPACING-8;
+      noteSVG+=`<line x1="${bx}" y1="30" x2="${bx}" y2="78" stroke="var(--text)" stroke-width="1.5" opacity=".4"/>`;
+    }
+  });
+
+  // Double barre finale
+  const lastX=startX+(notes.length-1)*NOTE_SPACING+24;
+  noteSVG+=`<line x1="${lastX}" y1="30" x2="${lastX}" y2="78" stroke="var(--text)" stroke-width="1.5" opacity=".4"/>
+    <line x1="${lastX+4}" y1="30" x2="${lastX+4}" y2="78" stroke="var(--text)" stroke-width="4" opacity=".5"/>`;
+
+  document.getElementById('staff-notes').innerHTML=noteSVG;
+}
+
+// ═══════════════════════════════════════════════════════════
+// ÉDITEUR
+// ═══════════════════════════════════════════════════════════
+function buildDurGrid(){
+  const el=document.getElementById('dur-grid');
+  el.innerHTML='';
+  DURATIONS.forEach(d=>{
+    const btn=document.createElement('button');
+    btn.className='dur-btn'+(d.id===selectedDur?' selected':'');
+    btn.innerHTML=`<span style="font-size:1.2rem">${d.sym}</span><span>${d.label}</span>`;
+    btn.onclick=()=>selectDur(d.id);
+    el.appendChild(btn);
+  });
+}
+
+function selectDur(id){
+  selectedDur=id;
+  document.querySelectorAll('.dur-btn').forEach((b,i)=>{
+    b.classList.toggle('selected',DURATIONS[i].id===id);
+  });
+}
+
+function buildNoteKbd(){
+  const el=document.getElementById('note-kbd');
+  el.innerHTML='';
+  NOTES.forEach(note=>{
+    const btn=document.createElement('button');
+    btn.className='note-btn';
+    btn.textContent=cap(note);
+    btn.style.color=NOTE_COLORS[note];
+    btn.style.borderColor=NOTE_COLORS[note]+'55';
+    btn.onclick=()=>addNote(note);
+    el.appendChild(btn);
+  });
+}
+
+function getOctave(){return parseInt(document.getElementById('score-octave').value)||4;}
+
+function addNote(note){
+  const oct=getOctave();
+  const entry={note,oct,dur:selectedDur,isRest:false};
+  currentScore.notes.push(entry);
+  buildStaffSVG();
+  markDirty();
+  // Feedback audio
+  ensureSampler().then(()=>{
+    const dur=DURATIONS.find(d=>d.id===selectedDur)||DURATIONS[2];
+    playNote(note,oct,dur.beats);
+  });
+}
+
+function addRest(){
+  currentScore.notes.push({note:null,oct:null,dur:selectedDur,isRest:true});
+  buildStaffSVG();
+  markDirty();
+}
+
+function removeNote(idx){
+  if(isPlaying)return;
+  currentScore.notes.splice(idx,1);
+  buildStaffSVG();
+  markDirty();
+}
+
+function undoNote(){
+  if(!currentScore.notes.length)return;
+  currentScore.notes.pop();
+  buildStaffSVG();
+  markDirty();
+}
+
+function clearScore(){
+  if(!confirm('Vider toutes les notes ?'))return;
+  currentScore.notes=[];
+  buildStaffSVG();
+  markDirty();
+}
+
+// ═══════════════════════════════════════════════════════════
+// BIBLIOTHÈQUE & SAUVEGARDE
+// ═══════════════════════════════════════════════════════════
+const LIB_KEY='score_library_v1';
+
+function loadLibrary(){
+  try{const d=localStorage.getItem(LIB_KEY);if(d)library=JSON.parse(d);}catch(e){}
+  renderLibrary();
+}
+
+function saveLibrary(){
+  try{localStorage.setItem(LIB_KEY,JSON.stringify(library));}catch(e){}
+}
+
+function renderLibrary(){
+  const el=document.getElementById('score-list');
+  const ids=Object.keys(library);
+  if(!ids.length){el.innerHTML='<div class="empty-lib">Aucune partition sauvegardée</div>';return;}
+  el.innerHTML='';
+  ids.forEach(id=>{
+    const sc=library[id];
+    const div=document.createElement('div');
+    div.className='score-item'+(id===currentId?' active':'');
+    div.innerHTML=`<span class="score-name">${sc.title||'Sans titre'}</span>
+      <span style="font-size:.62rem;color:var(--muted)">${sc.meter}/4 · ${sc.tempo}bpm · ${sc.notes.length}n</span>
+      <span class="score-del" onclick="event.stopPropagation();deleteScore('${id}')">✕</span>`;
+    div.onclick=()=>loadScore(id);
+    el.appendChild(div);
+  });
+}
+
+function newScore(){
+  currentId=null;
+  currentScore={title:'',meter:4,tempo:80,notes:[]};
+  document.getElementById('score-title').value='';
+  document.getElementById('score-meter').value='4';
+  document.getElementById('score-tempo').value='80';
+  document.getElementById('tempo-val').textContent='80';
+  buildStaffSVG();
+  renderLibrary();
+  isDirty=false;
+}
+
+function loadScore(id){
+  currentId=id;
+  currentScore=JSON.parse(JSON.stringify(library[id]));
+  document.getElementById('score-title').value=currentScore.title||'';
+  document.getElementById('score-meter').value=currentScore.meter||4;
+  document.getElementById('score-tempo').value=currentScore.tempo||80;
+  document.getElementById('tempo-val').textContent=currentScore.tempo||80;
+  buildStaffSVG();
+  renderLibrary();
+  isDirty=false;
+  stopPlay();
+}
+
+function saveScore(){
+  currentScore.title=document.getElementById('score-title').value||'Sans titre';
+  currentScore.meter=parseInt(document.getElementById('score-meter').value)||4;
+  currentScore.tempo=parseInt(document.getElementById('score-tempo').value)||80;
+  if(!currentId)currentId='sc_'+Date.now();
+  library[currentId]=JSON.parse(JSON.stringify(currentScore));
+  saveLibrary();
+  renderLibrary();
+  isDirty=false;
+  const ind=document.getElementById('save-ind');
+  ind.style.opacity='1';setTimeout(()=>ind.style.opacity='0',1500);
+}
+
+function deleteScore(id){
+  if(!confirm('Supprimer cette partition ?'))return;
+  delete library[id];
+  if(currentId===id){newScore();}
+  saveLibrary();renderLibrary();
+}
+
+function markDirty(){isDirty=true;}
+
+// ═══════════════════════════════════════════════════════════
+// IMPORT / EXPORT
+// ═══════════════════════════════════════════════════════════
+function showImport(){
+  document.getElementById('import-panel').style.display='block';
+  document.getElementById('import-json').value='';
+  document.getElementById('import-err').textContent='';
+}
+
+function importJSON(){
+  const raw=document.getElementById('import-json').value.trim();
+  try{
+    const data=JSON.parse(raw);
+    if(!data.notes||!Array.isArray(data.notes))throw new Error('Champ "notes" manquant ou invalide');
+    // Valider les notes
+    data.notes.forEach((n,i)=>{
+      if(!n.isRest&&(!n.note||!NOTES.includes(n.note)))throw new Error(`Note invalide à l'index ${i}: "${n.note}"`);
+      if(!n.dur||!DURATIONS.find(d=>d.id===n.dur))throw new Error(`Durée invalide à l'index ${i}: "${n.dur}"`);
+    });
+    currentScore={
+      title:data.title||'Importé',
+      meter:data.meter||4,
+      tempo:data.tempo||80,
+      notes:data.notes,
+    };
+    document.getElementById('score-title').value=currentScore.title;
+    document.getElementById('score-meter').value=currentScore.meter;
+    document.getElementById('score-tempo').value=currentScore.tempo;
+    document.getElementById('tempo-val').textContent=currentScore.tempo;
+    currentId=null;
+    buildStaffSVG();
+    markDirty();
+    document.getElementById('import-panel').style.display='none';
+  }catch(e){
+    document.getElementById('import-err').textContent='Erreur : '+e.message;
+  }
+}
+
+function exportScore(){
+  const data={
+    title:document.getElementById('score-title').value||currentScore.title||'Sans titre',
+    meter:parseInt(document.getElementById('score-meter').value)||4,
+    tempo:parseInt(document.getElementById('score-tempo').value)||80,
+    notes:currentScore.notes,
+  };
+  const json=JSON.stringify(data,null,2);
+  // Copier dans le presse-papier
+  navigator.clipboard.writeText(json).then(()=>{
+    alert('JSON copié dans le presse-papier !');
+  }).catch(()=>{
+    // Fallback : prompt
+    prompt('Copiez ce JSON :',json);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
+document.getElementById('score-meter').addEventListener('change',()=>{buildStaffSVG();markDirty();});
+document.getElementById('btn-play').addEventListener('click',ensureSampler,{once:true});
+
+buildDurGrid();
+buildNoteKbd();
+loadLibrary();
+buildStaffSVG();
+</script>
+</body>
+</html>

@@ -152,7 +152,7 @@ input[type=range]{padding:.2rem 0;accent-color:var(--accent)}
 </div>
 <header>
   <h1>Dictée de Rythme</h1>
-  <p>Steinway Grand Piano · Entraînement à l'oreille rythmique · <span style="color:var(--border)">v3.3</span></p>
+  <p>Steinway Grand Piano · Entraînement à l'oreille rythmique · <span style="color:var(--border)">v3.4</span></p>
 </header>
 <div class="layout">
 
@@ -217,7 +217,17 @@ input[type=range]{padding:.2rem 0;accent-color:var(--accent)}
         <div class="ba"></div><div class="ba"></div><div class="ba"></div><div class="ba"></div>
       </div>
     </div>
-    <div class="staff-wrap"><div class="staff" id="staff"><span class="hint-txt">Générez un rythme pour commencer</span></div></div>
+    <div class="staff-wrap" style="position:relative">
+      <!-- Lignes de portée en fond -->
+      <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0" preserveAspectRatio="none">
+        <line x1="0" y1="28%" x2="100%" y2="28%" stroke="var(--muted)" stroke-width="0.8" opacity=".35"/>
+        <line x1="0" y1="40%" x2="100%" y2="40%" stroke="var(--muted)" stroke-width="0.8" opacity=".35"/>
+        <line x1="0" y1="52%" x2="100%" y2="52%" stroke="var(--muted)" stroke-width="0.8" opacity=".35"/>
+        <line x1="0" y1="64%" x2="100%" y2="64%" stroke="var(--muted)" stroke-width="0.8" opacity=".35"/>
+        <line x1="0" y1="76%" x2="100%" y2="76%" stroke="var(--muted)" stroke-width="0.8" opacity=".35"/>
+      </svg>
+      <div class="staff" id="staff" style="position:relative;z-index:1"><span class="hint-txt">Générez un rythme pour commencer</span></div>
+    </div>
     <div class="controls">
       <button class="btn btn-p" id="btn-generate" onclick="generate()">⟳ Générer</button>
       <button class="btn" id="btn-play" onclick="playRhythm()" disabled>▶ Écouter</button>
@@ -972,6 +982,16 @@ async function generate(){
 function renderStaff(hide){
   const el=document.getElementById('staff'),meter=getMeter();
   el.innerHTML='';
+
+  // Clé de percussion (deux barres verticales)
+  const clef=document.createElement('div');
+  clef.style.cssText='flex-shrink:0;display:flex;align-items:center;padding:0 6px 20px 2px';
+  clef.innerHTML=`<svg width="14" height="60" viewBox="0 0 14 60">
+    <line x1="3"  y1="10" x2="3"  y2="50" stroke="var(--text)" stroke-width="3" stroke-linecap="round" opacity=".7"/>
+    <line x1="11" y1="10" x2="11" y2="50" stroke="var(--text)" stroke-width="3" stroke-linecap="round" opacity=".7"/>
+  </svg>`;
+  el.appendChild(clef);
+
   const ts=document.createElement('div');ts.className='time-sig';
   ts.innerHTML=`<span>${meter}</span><span>4</span>`;el.appendChild(ts);
   const bl=document.createElement('div');bl.className='barline';el.appendChild(bl);
