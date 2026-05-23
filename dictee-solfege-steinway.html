@@ -6,7 +6,6 @@
 <title>Dictée de Solfège — Steinway</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎹</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
 <style>
   /* Loading overlay */
   #loading{position:fixed;inset:0;background:rgba(14,14,18,.95);display:flex;flex-direction:column;
@@ -133,7 +132,7 @@
 
 <header>
   <h1>Dictée de Solfège</h1>
-  <p>Steinway Grand Piano · Entraînement à l'oreille · <span style="color:var(--border)">v2.1</span></p>
+  <p>Steinway Grand Piano · Entraînement à l'oreille · <span style="color:var(--border)">v2.2</span></p>
 </header>
 
 <div class="layout">
@@ -892,14 +891,26 @@ loadProgress();
 buildMelodySelector();
 updateScore();
 
-// Chrome exige un geste utilisateur avant de démarrer l'AudioContext
-// On charge le sampler au premier clic sur n'importe quel bouton
+// Chargement dynamique de Tone.js après geste utilisateur (comme dictee-rythme)
+let _ToneLoaded = false;
+async function loadTone() {
+  if (_ToneLoaded) return;
+  await new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js';
+    s.onload = resolve; s.onerror = reject;
+    document.head.appendChild(s);
+  });
+  _ToneLoaded = true;
+}
+
 let samplerReady = false;
 async function ensureSampler() {
   if (samplerReady) return;
   document.getElementById('loading').style.display = 'flex';
   document.getElementById('load-bar').style.width = '0%';
   document.getElementById('load-msg').textContent = 'Chargement du piano Steinway…';
+  await loadTone();
   await Tone.start();
   await loadSampler();
   samplerReady = true;
