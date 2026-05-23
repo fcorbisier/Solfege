@@ -146,7 +146,7 @@ textarea:focus{border-color:var(--accent)}
 
 <header>
   <h1>Lecteur de Partitions</h1>
-  <p>Piano Steinway · Voix TTS · v1.4</p>
+  <p>Piano Steinway · v1.5</p>
 </header>
 
 <div class="page">
@@ -228,12 +228,6 @@ textarea:focus{border-color:var(--accent)}
       <button class="btn btn-p" id="btn-play" onclick="togglePlay()">▶ Jouer</button>
       <button class="btn btn-sm" id="btn-stop" onclick="stopPlay()" disabled>⏹ Stop</button>
       <button class="btn btn-sm" onclick="rewind()">⏮ Début</button>
-      <div style="display:flex;gap:.3rem">
-        <button class="pm-btn active" id="pm-both"  onclick="setMode('both')" title="Piano + Voix">🎹 + 🗣</button>
-        <button class="pm-btn"       id="pm-piano" onclick="setMode('piano')" title="Piano seul">🎹</button>
-        <button class="pm-btn"       id="pm-voice" onclick="setMode('voice')" title="Voix seule">🗣</button>
-      </div>
-      <div id="current-note" style="font-size:1.1rem;font-family:'Playfair Display',serif;min-height:1.6rem;margin-left:.5rem"></div>
     </div>
   </div>
 
@@ -310,7 +304,7 @@ function cap(s){return s.charAt(0).toUpperCase()+s.slice(1);}
 let lib={}, currentId=null;
 let score={title:'',meter:4,tempo:80,notes:[]};
 let selDur='noire', dirty=false;
-let playing=false, playPos=0, playTimer=null, playMode='both';
+let playing=false, playPos=0, playTimer=null;
 let sampler=null, samplerReady=false, Tone=null;
 const LIB_KEY='partitions_v1';
 
@@ -361,48 +355,8 @@ function pianoNote(note,oct,beats){
 }
 
 // ═══════════════════════════════════════════
-// TTS — file d'attente pour ne pas perdre de notes
-// ═══════════════════════════════════════════
-let ttsVoice=null;
-function initVoice(){
-  const v=speechSynthesis.getVoices();
-  ttsVoice=v.find(x=>x.lang.startsWith('fr')&&x.localService)||v.find(x=>x.lang.startsWith('fr'))||null;
-}
-speechSynthesis.onvoiceschanged=initVoice;setTimeout(initVoice,500);
-
-let ttsQueue=[];
-let ttsBusy=false;
-
-function speak(t){
-  if(!t)return;
-  ttsQueue.push(t);
-  if(!ttsBusy)processQueue();
-}
-
-function processQueue(){
-  if(!ttsQueue.length){ttsBusy=false;return;}
-  ttsBusy=true;
-  const text=ttsQueue.shift();
-  const u=new SpeechSynthesisUtterance(text);
-  u.lang='fr-FR';u.rate=1.1;u.pitch=1;
-  if(ttsVoice)u.voice=ttsVoice;
-  u.onend=()=>processQueue();
-  u.onerror=()=>processQueue(); // continuer même en cas d'erreur
-  speechSynthesis.speak(u);
-}
-
-function clearTTS(){
-  ttsQueue=[];ttsBusy=false;speechSynthesis.cancel();
-}
-
-// ═══════════════════════════════════════════
 // LECTURE
 // ═══════════════════════════════════════════
-function setMode(m){
-  playMode=m;
-  ['both','piano','voice'].forEach(k=>document.getElementById('pm-'+k).classList.toggle('active',k===m));
-}
-
 async function togglePlay(){
   if(playing){pausePlay();return;}
   if(!score.notes.length){alert('Aucune note à jouer.');return;}
@@ -420,19 +374,10 @@ function playNext(){
   const dur=DURS.find(d=>d.id===n.dur)||DURS[3];
   const beatSec=60/parseInt(document.getElementById('score-tempo').value||80);
   hlNote(playPos);
-  const nd=document.getElementById('current-note');
-  if(n.isRest){nd.textContent='𝄽 silence';nd.style.color='var(--muted)';}
-  else{nd.textContent=cap(n.note)+n.oct;nd.style.color=COLORS[n.note]||'var(--accent)';}
-  if(!n.isRest){
-    if(playMode==='both'||playMode==='piano') pianoNote(n.note,n.oct,dur.beats);
-    if(playMode==='both'||playMode==='voice') speak(cap(n.note));
-  }
+  if(!n.isRest) pianoNote(n.note,n.oct,dur.beats);
   document.getElementById('progress-fill').style.width=((playPos+1)/score.notes.length*100)+'%';
   playPos++;
-  // En mode voix seule, délai minimum de 800ms pour que la TTS finisse
-  const durMs=dur.beats*beatSec*1000;
-  const minMs=(playMode==='voice')?Math.max(durMs,800):durMs;
-  playTimer=setTimeout(playNext, minMs);
+  playTimer=setTimeout(playNext, dur.beats*beatSec*1000);
 }
 function pausePlay(){
   playing=false;clearTimeout(playTimer);
@@ -440,11 +385,10 @@ function pausePlay(){
   document.getElementById('play-ind').classList.remove('on');
 }
 function stopPlay(){
-  playing=false;clearTimeout(playTimer);clearTTS();
+  playing=false;clearTimeout(playTimer);
   document.getElementById('btn-play').textContent='▶ Jouer';
   document.getElementById('btn-stop').disabled=true;
   document.getElementById('play-ind').classList.remove('on');
-  document.getElementById('current-note').textContent='';
   document.getElementById('progress-fill').style.width='0%';
   hlNote(-1);playPos=0;
 }

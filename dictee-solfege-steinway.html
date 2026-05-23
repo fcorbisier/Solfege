@@ -132,7 +132,7 @@
 
 <header>
   <h1>Dictée de Solfège</h1>
-  <p>Steinway Grand Piano · Entraînement à l'oreille · <span style="color:var(--border)">v2.6</span></p>
+  <p>Steinway Grand Piano · Entraînement à l'oreille · <span style="color:var(--border)">v2.7</span></p>
 </header>
 
 <div class="layout">
@@ -743,14 +743,11 @@ function renderNote(note, oct, x, hidden, active, result) {
   });
 
   if (hidden) {
-    // Note cachée : dessinée mais floutée avec filtre SVG
-    svg += `<g filter="url(#note-blur)" opacity=".12">`;
-    svg += `<ellipse cx="${x}" cy="${y}" rx="7" ry="5" transform="rotate(-15,${x},${y})" fill="var(--muted)"/>`;
-    if (dir === 'up') {
-      svg += `<line x1="${x+6}" y1="${y-2}" x2="${x+6}" y2="${y-32}" stroke="var(--muted)" stroke-width="1.5"/>`;
-    } else {
-      svg += `<line x1="${x-6}" y1="${y+2}" x2="${x-6}" y2="${y+32}" stroke="var(--muted)" stroke-width="1.5"/>`;
-    }
+    // Note cachée : toujours au centre de la portée (y=54), position ne révèle rien
+    const cy = 54;
+    svg += `<g filter="url(#note-blur)" opacity=".18">`;
+    svg += `<ellipse cx="${x}" cy="${cy}" rx="7" ry="5" transform="rotate(-15,${x},${cy})" fill="var(--muted)"/>`;
+    svg += `<line x1="${x+6}" y1="${cy-2}" x2="${x+6}" y2="${cy-32}" stroke="var(--muted)" stroke-width="1.5"/>`;
     svg += `</g>`;
   } else {
     // Tête de note (ellipse inclinée)
