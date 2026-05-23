@@ -152,7 +152,7 @@ input[type=range]{padding:.2rem 0;accent-color:var(--accent)}
 </div>
 <header>
   <h1>Dictée de Rythme</h1>
-  <p>Steinway Grand Piano · Entraînement à l'oreille rythmique · <span style="color:var(--border)">v3.1</span></p>
+  <p>Steinway Grand Piano · Entraînement à l'oreille rythmique · <span style="color:var(--border)">v3.2</span></p>
 </header>
 <div class="layout">
 
@@ -1298,22 +1298,25 @@ const BEAT_ARROWS = {
 // Séquence correcte 4/4 : 1(bas)→2(gauche)→3(droite)→4(haut)→1
 // Index des nodes: 0=bas(1), 1=gauche(2), 2=droite(3), 3=haut(4)
 const BEAT_SEQ = {
-  2: [0,1],          // bas → haut → bas…
-  3: [0,1,2],        // bas → droite → haut…
-  4: [0,1,2,3],      // bas → gauche → droite → haut…
+  2: [0,1],
+  3: [0,1,2],
+  4: [0,1,2,3],
 };
 const BEAT_NODES_DEF = {
-  2: [{x:50,y:110,label:'1'},{x:50,y:20,label:'2'}],
-  3: [{x:45,y:110,label:'1'},{x:105,y:70,label:'2'},{x:45,y:20,label:'3'}],
-  4: [{x:75,y:110,label:'1'},{x:20,y:65,label:'2'},{x:130,y:65,label:'3'},{x:75,y:20,label:'4'}],
+  // 2/4 : ① bas, ② haut légèrement décalé droite
+  2: [{x:48,y:108,label:'1'},{x:58,y:20,label:'2'}],
+  // 3/4 : ① bas-centre, ② droite-milieu, ③ haut-centre
+  3: [{x:45,y:108,label:'1'},{x:108,y:68,label:'2'},{x:45,y:20,label:'3'}],
+  // 4/4 : ① bas-centre, ② gauche-bas, ③ droite-haut (plus haut que ②), ④ haut-centre
+  4: [{x:75,y:108,label:'1'},{x:18,y:72,label:'2'},{x:132,y:42,label:'3'},{x:75,y:15,label:'4'}],
 };
 const BEAT_EDGES = {
   2: [[0,1],[1,0]],
   3: [[0,1],[1,2],[2,0]],
-  4: [[0,1],[1,3],[3,2],[2,0]],
+  4: [[0,1],[1,2],[2,3],[3,0]], // ①→②→③→④→①
 };
-const BEAT_W = {2:100,3:150,4:150};
-const BEAT_H = 130;
+const BEAT_W = {2:110,3:155,4:155};
+const BEAT_H = 125;
 
 function arrowHead(x1,y1,x2,y2,col){
   const dx=x2-x1,dy=y2-y1,len=Math.sqrt(dx*dx+dy*dy);
