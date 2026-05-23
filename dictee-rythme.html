@@ -152,7 +152,7 @@ input[type=range]{padding:.2rem 0;accent-color:var(--accent)}
 </div>
 <header>
   <h1>Dictée de Rythme</h1>
-  <p>Steinway Grand Piano · Entraînement à l'oreille rythmique · <span style="color:var(--border)">v2.8</span></p>
+  <p>Steinway Grand Piano · Entraînement à l'oreille rythmique · <span style="color:var(--border)">v2.9</span></p>
 </header>
 <div class="layout">
 
@@ -1258,7 +1258,7 @@ function drawBeatDiagram(meter) {
   pointsEl.innerHTML = bd.points.map((p,i) => {
     const isFirst = i === 0;
     return `<circle cx="${p.x}" cy="${p.y}" r="${isFirst?7:5}" fill="${isFirst?'var(--accent)':'var(--surface2)'}" stroke="${isFirst?'var(--accent)':'var(--muted)'}" stroke-width="1.5"/>
-      <text x="${p.x}" y="${p.y}+4" text-anchor="middle" dominant-baseline="middle" font-size="8" fill="${isFirst?'var(--bg)':'var(--muted)'}" font-family="DM Mono,monospace">${i+1}</text>`;
+      <text x="${p.x}" y="${p.y+4}" text-anchor="middle" dominant-baseline="middle" font-size="8" fill="${isFirst?'var(--bg)':'var(--muted)'}" font-family="DM Mono,monospace">${i+1}</text>`;
   }).join('');
 
   // Légende
