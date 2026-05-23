@@ -133,7 +133,7 @@
 
 <header>
   <h1>Dictée de Solfège</h1>
-  <p>Steinway Grand Piano · Entraînement à l'oreille · <span style="color:var(--border)">v2.0</span></p>
+  <p>Steinway Grand Piano · Entraînement à l'oreille · <span style="color:var(--border)">v2.1</span></p>
 </header>
 
 <div class="layout">
@@ -575,25 +575,24 @@ function generateSequence() {
     currentChord = {root:a, third:b, fifth:null, name:`${cap(a)} + ${cap(b)}`, quality:'interval'};
     seq = [a, b];
   } else if (mode === 'chord') {
-    // Accord parfait — filtrer ceux dont les 3 notes sont actives
     const available = CHORDS.filter(c =>
       active.includes(c.root) && active.includes(c.third) && active.includes(c.fifth)
     );
     if (!available.length) { alert('Activez au moins 5 notes pour les accords parfaits.'); return; }
     currentChord = available[Math.floor(Math.random() * available.length)];
     seq = [currentChord.root, currentChord.third, currentChord.fifth];
-  }
-
   } else if (mode === 'melody') {
     startMelody(); return;
   }
+
+  revealed = false;
+  chordAns = new Set();
+  renderSeq(true);
   resetAns();
   document.getElementById('ans-panel').style.display = 'block';
   document.getElementById('btn-play').disabled = false;
   document.getElementById('btn-reveal').disabled = false;
   document.getElementById('btn-ref').disabled = false;
-
-  // Adapter l'interface réponse selon le mode
   updateAnswerUI();
   setTimeout(playSeq, 300);
 }
