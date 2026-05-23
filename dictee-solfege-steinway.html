@@ -132,7 +132,7 @@
 
 <header>
   <h1>Dictée de Solfège</h1>
-  <p>Steinway Grand Piano · Entraînement à l'oreille · <span style="color:var(--border)">v2.4</span></p>
+  <p>Steinway Grand Piano · Entraînement à l'oreille · <span style="color:var(--border)">v2.5</span></p>
 </header>
 
 <div class="layout">
@@ -229,6 +229,10 @@
     <!-- Portée musicale SVG -->
     <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.75rem;overflow-x:auto">
       <svg id="staff-svg" width="100%" height="120" viewBox="0 0 600 120" preserveAspectRatio="xMinYMid meet" style="display:block;min-width:300px">
+        <defs>
+          <filter id="note-blur"><feGaussianBlur stdDeviation="4"/></filter>
+          <filter id="note-glow"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        </defs>
         <!-- Fond blanc pour la portée -->
         <rect x="0" y="0" width="600" height="120" fill="transparent"/>
         <!-- 5 lignes de portée -->
@@ -276,6 +280,39 @@
         <button class="btn btn-sm" onclick="undoAns()">↩ Annuler</button>
       </div>
       <div class="result" id="result"></div>
+    </div>
+  </div>
+
+  <!-- Mode passif -->
+  <div class="panel">
+    <div class="panel-title">Mode passif 🎧</div>
+    <div style="font-size:.72rem;color:var(--muted);line-height:1.8;margin-bottom:.9rem">
+      Le piano joue des séquences automatiquement, laisse quelques secondes, puis annonce les notes à voix haute.<br>
+      Idéal avec des écouteurs dans le tram.
+    </div>
+    <div style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;margin-bottom:.75rem">
+      <div>
+        <label style="font-size:.6rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:.3rem">Notes par séquence</label>
+        <select id="passive-len" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:.78rem;padding:.35rem .6rem;border-radius:6px">
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4" selected>4</option>
+          <option value="5">5</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:.6rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:.3rem">Pause avant réponse</label>
+        <select id="passive-pause" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:.78rem;padding:.35rem .6rem;border-radius:6px">
+          <option value="2000">2 secondes</option>
+          <option value="4000" selected>4 secondes</option>
+          <option value="6000">6 secondes</option>
+          <option value="8000">8 secondes</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:.5rem;align-items:center">
+      <button class="btn btn-p" id="btn-passive" onclick="togglePassive()">▶ Démarrer</button>
+      <div style="font-size:.72rem;color:var(--muted)" id="passive-status"></div>
     </div>
   </div>
 
@@ -706,9 +743,15 @@ function renderNote(note, oct, x, hidden, active, result) {
   });
 
   if (hidden) {
-    // Note cachée : point d'interrogation
-    svg += `<ellipse cx="${x}" cy="${y}" rx="7" ry="5" fill="none" stroke="var(--muted)" stroke-width="1.5" opacity=".3"/>`;
-    svg += `<text x="${x}" y="${y+4}" text-anchor="middle" font-size="10" fill="var(--muted)" opacity=".4">?</text>`;
+    // Note cachée : dessinée mais floutée avec filtre SVG
+    svg += `<g filter="url(#note-blur)" opacity=".25">`;
+    svg += `<ellipse cx="${x}" cy="${y}" rx="7" ry="5" transform="rotate(-15,${x},${y})" fill="var(--muted)"/>`;
+    if (dir === 'up') {
+      svg += `<line x1="${x+6}" y1="${y-2}" x2="${x+6}" y2="${y-32}" stroke="var(--muted)" stroke-width="1.5"/>`;
+    } else {
+      svg += `<line x1="${x-6}" y1="${y+2}" x2="${x-6}" y2="${y+32}" stroke="var(--muted)" stroke-width="1.5"/>`;
+    }
+    svg += `</g>`;
   } else {
     // Tête de note (ellipse inclinée)
     svg += `<ellipse cx="${x}" cy="${y}" rx="7" ry="5" transform="rotate(-15,${x},${y})" fill="${col}"/>`;
@@ -1014,7 +1057,104 @@ document.addEventListener('keydown', e => {
     addNote(KMAP[e.key.toLowerCase()]);
 });
 
-// ── Init ───────────────────────────────────────────────────────────────────────
+// ── Mode passif ────────────────────────────────────────────────────────────────
+let passiveActive = false;
+let passiveTimer  = null;
+
+// TTS pour le mode passif
+let passiveTtsVoice = null;
+function initPassiveVoice() {
+  const voices = speechSynthesis.getVoices();
+  passiveTtsVoice = voices.find(v=>v.lang.startsWith('fr')&&v.localService)
+                 || voices.find(v=>v.lang.startsWith('fr')) || null;
+}
+speechSynthesis.onvoiceschanged = initPassiveVoice;
+setTimeout(initPassiveVoice, 500);
+
+function passiveSpeak(text, onEnd) {
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'fr-FR'; u.rate = 0.9; u.pitch = 1;
+  if (passiveTtsVoice) u.voice = passiveTtsVoice;
+  if (onEnd) u.onend = onEnd;
+  speechSynthesis.speak(u);
+}
+
+async function togglePassive() {
+  if (passiveActive) {
+    stopPassive(); return;
+  }
+  await ensureSampler();
+  passiveActive = true;
+  document.getElementById('btn-passive').textContent = '⏹ Arrêter';
+  document.getElementById('btn-passive').style.background = 'var(--error)';
+  document.getElementById('btn-passive').style.borderColor = 'var(--error)';
+  runPassiveCycle();
+}
+
+function stopPassive() {
+  passiveActive = false;
+  clearTimeout(passiveTimer);
+  speechSynthesis.cancel();
+  document.getElementById('btn-passive').textContent = '▶ Démarrer';
+  document.getElementById('btn-passive').style.background = '';
+  document.getElementById('btn-passive').style.borderColor = '';
+  document.getElementById('passive-status').textContent = '';
+}
+
+function runPassiveCycle() {
+  if (!passiveActive) return;
+
+  const len    = parseInt(document.getElementById('passive-len').value) || 4;
+  const pause  = parseInt(document.getElementById('passive-pause').value) || 4000;
+  const active = getActive();
+  if (!active.length) { stopPassive(); return; }
+
+  // Générer une séquence pondérée (répétition espacée)
+  const passiveSeq = Array.from({length: len}, () => weightedRandom(active));
+  const bpm   = +document.getElementById('tempo').value;
+  const beat  = 60 / bpm;
+
+  document.getElementById('passive-status').textContent = '🎹 Écoute…';
+
+  // Jouer les notes au piano
+  passiveSeq.forEach((note, i) => {
+    passiveTimer = setTimeout(() => {
+      playPianoNote(note, octave, beat * 0.85 + 's');
+    }, i * beat * 1000);
+  });
+
+  // Après la séquence + pause → révéler à voix haute
+  const seqDur = passiveSeq.length * beat * 1000;
+  passiveTimer = setTimeout(() => {
+    if (!passiveActive) return;
+    document.getElementById('passive-status').textContent = '🎧 Réponse dans ' + (pause/1000) + 's…';
+
+    passiveTimer = setTimeout(() => {
+      if (!passiveActive) return;
+      document.getElementById('passive-status').textContent = '🗣 ' + passiveSeq.map(cap).join(' — ');
+
+      // Dire les notes une par une
+      let i = 0;
+      function sayNext() {
+        if (!passiveActive || i >= passiveSeq.length) {
+          // Rejouer la séquence au piano en même temps que la voix
+          passiveSeq.forEach((note, j) => {
+            setTimeout(() => playPianoNote(note, octave, '4n'), j * 600);
+          });
+          // Enchaîner le prochain cycle
+          passiveTimer = setTimeout(runPassiveCycle, passiveSeq.length * 600 + 1500);
+          return;
+        }
+        passiveSpeak(cap(passiveSeq[i]), () => {
+          i++;
+          setTimeout(sayNext, 200);
+        });
+      }
+      sayNext();
+    }, pause);
+  }, seqDur + 300);
+}
 buildKbd();
 loadProgress();
 buildMelodySelector();
