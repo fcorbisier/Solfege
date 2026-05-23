@@ -68,7 +68,7 @@ input[type=range]{padding:.2rem 0;accent-color:var(--accent)}
 .rl{display:flex;justify-content:space-between;font-size:.62rem;color:var(--muted);margin-top:.2rem}
 .fig-section{display:contents} /* supprime le stacking vertical */
 .fig-section-lbl{display:none} /* cache les labels de catégorie */
-.fig-row{display:contents} /* les items vont directement dans le flex parent- */
+.fig-row{display:contents} /* les items vont directement dans le flex parent */
 #fig-toggles{display:flex;flex-wrap:wrap;gap:.3rem}
 .ftog input{display:none}
 .ftog label{display:flex;flex-direction:column;align-items:center;gap:.2rem;padding:.25rem .35rem;border-radius:6px;border:1.5px solid var(--border);cursor:pointer;font-size:.48rem;color:var(--muted);transition:all .12s;user-select:none;min-width:38px;text-align:center;line-height:1.2}
@@ -152,7 +152,7 @@ input[type=range]{padding:.2rem 0;accent-color:var(--accent)}
 </div>
 <header>
   <h1>Dictée de Rythme</h1>
-  <p>Steinway Grand Piano · Entraînement à l'oreille rythmique · <span style="color:var(--border)">v3.0</span></p>
+  <p>Steinway Grand Piano · Entraînement à l'oreille rythmique · <span style="color:var(--border)">v3.1</span></p>
 </header>
 <div class="layout">
 
@@ -279,46 +279,12 @@ input[type=range]{padding:.2rem 0;accent-color:var(--accent)}
     <!-- Affichage comptage -->
     <div id="count-display" style="display:none;margin-top:.6rem;padding:.5rem .75rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-size:1.1rem;font-family:'Playfair Display',serif;color:var(--accent);letter-spacing:.1em;text-align:center;min-height:36px"></div>
 
-    <!-- Battue de mesure — bras animé -->
-    <div id="beat-panel" style="display:none;margin-top:.75rem;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.75rem;text-align:center">
-      <div style="font-size:.58rem;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;margin-bottom:.5rem">
-        Battue <span id="beat-meter-label">4/4</span> · temps <span id="beat-beat-num" style="color:var(--accent);font-size:.75rem">—</span>
+    <!-- Battue de mesure — schéma flèches -->
+    <div id="beat-panel" style="display:none;margin-top:.75rem;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.75rem">
+      <div style="font-size:.58rem;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;margin-bottom:.6rem">
+        Battre la mesure à <span id="beat-meter-label">4</span> temps
       </div>
-      <svg id="beat-arm-svg" width="160" height="170" viewBox="0 0 160 170" style="display:block;margin:0 auto;overflow:visible">
-        <defs>
-          <filter id="arm-glow">
-            <feGaussianBlur stdDeviation="3" result="blur"/>
-            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-          </filter>
-        </defs>
-        <!-- Bras : épaule fixe en haut centre, avant-bras + main -->
-        <g id="arm-group" transform="translate(80,30)">
-          <!-- Bras haut (épaule→coude) -->
-          <line id="arm-upper" x1="0" y1="0" x2="0" y2="40"
-            stroke="var(--muted)" stroke-width="8" stroke-linecap="round" opacity=".5"/>
-          <!-- Avant-bras (coude→poignet) -->
-          <line id="arm-lower" x1="0" y1="40" x2="0" y2="85"
-            stroke="var(--text)" stroke-width="7" stroke-linecap="round"/>
-          <!-- Main -->
-          <g id="arm-hand">
-            <!-- Paume -->
-            <ellipse cx="0" cy="95" rx="7" ry="9"
-              fill="var(--text)" opacity=".9"/>
-            <!-- Doigts -->
-            <line x1="-5" y1="92" x2="-8" y2="106" stroke="var(--text)" stroke-width="3.5" stroke-linecap="round"/>
-            <line x1="-1" y1="90" x2="-2" y2="107" stroke="var(--text)" stroke-width="3.5" stroke-linecap="round"/>
-            <line x1="3"  y1="90" x2="5"  y2="107" stroke="var(--text)" stroke-width="3.5" stroke-linecap="round"/>
-            <line x1="6"  y1="92" x2="10" y2="105" stroke="var(--text)" stroke-width="3.5" stroke-linecap="round"/>
-          </g>
-          <!-- Point lumineux au bout (poignet) -->
-          <circle id="arm-tip" cx="0" cy="88" r="5" fill="var(--accent)" filter="url(#arm-glow)" opacity=".9"/>
-        </g>
-        <!-- Trace du mouvement -->
-        <path id="beat-trace" d="" fill="none" stroke="var(--accent)" stroke-width="1.5"
-          stroke-dasharray="4,4" opacity=".3"/>
-        <!-- Numéros des temps -->
-        <g id="beat-nums" font-size="10" font-family="DM Mono,monospace" fill="var(--muted)" text-anchor="middle"></g>
-      </svg>
+      <div id="beat-diagram" style="display:flex;justify-content:center"></div>
     </div>
 
     <div id="demo-panel" style="display:none;margin-top:1rem">
@@ -1260,7 +1226,7 @@ function updateBeatToggle(){
     beatKnob.style.transform='translateX(16px)';
     beatKnob.style.background='var(--bg)';
     document.getElementById('beat-panel').style.display='block';
-    drawArmDiagram(getMeter());
+    drawBeatDiagram(getMeter());
   } else {
     beatSlider.style.background='var(--border)';
     beatKnob.style.transform='translateX(0)';
@@ -1272,155 +1238,183 @@ function updateBeatToggle(){
 beatCheck.addEventListener('change', updateBeatToggle);
 
 // ═══════════════════════════════════════════════════════════
-// BATTUE DE MESURE — Bras animé
-// Origine SVG : épaule à (80,30), bras vers le bas
-// Le poignet (tip) se déplace selon la trajectoire de battue
-// On fait pivoter le bras entier autour de l'épaule
+// BATTUE — Schéma flèches type manuel de solfège
 // ═══════════════════════════════════════════════════════════
+// Chaque métrique = liste de segments {from, to, label, dir}
+// Coordonnées dans un repère commun, l'origine est le centre bas
+// On génère un SVG avec flèches et numéros
 
-// Positions du poignet pour chaque temps (x,y dans viewBox 160x170)
-// Épaule fixe en (80,30)
-// Convention : 1=bas, 2=gauche(4/4)/droite(3/4), 3=droite(4/4)/haut(3/4), 4=haut
-const ARM_POSITIONS = {
-  2: [
-    {x:80, y:145, label:'1', dir:'Bas'},      // 1 — bas (rebond)
-    {x:80, y:55,  label:'2', dir:'Haut'},      // 2 — haut
-  ],
-  3: [
-    {x:80, y:145, label:'1', dir:'Bas'},       // 1 — bas
-    {x:118,y:105, label:'2', dir:'Droite'},    // 2 — droite
-    {x:80, y:55,  label:'3', dir:'Haut'},      // 3 — haut
-  ],
-  4: [
-    {x:80, y:145, label:'1', dir:'Bas'},       // 1 — bas
-    {x:42, y:105, label:'2', dir:'Gauche'},    // 2 — gauche
-    {x:118,y:105, label:'3', dir:'Droite'},    // 3 — droite
-    {x:80, y:55,  label:'4', dir:'Haut'},      // 4 — haut
-  ],
+const BEAT_SCHEMES = {
+  2: {
+    // 2/4 : 1=bas, 2=haut
+    w:80, h:130,
+    nodes: [
+      {id:1, x:40, y:110, label:'1'},
+      {id:2, x:40, y:20,  label:'2'},
+    ],
+    arrows: [
+      {from:0, to:1, label:'↑'},   // 1→2 haut
+      {from:1, to:0, label:'↓'},   // 2→1 bas
+    ],
+  },
+  3: {
+    // 3/4 : 1=bas, 2=droite, 3=haut
+    w:130, h:130,
+    nodes: [
+      {id:1, x:40,  y:110, label:'1'},
+      {id:2, x:100, y:70,  label:'2'},
+      {id:3, x:40,  y:20,  label:'3'},
+    ],
+    arrows: [
+      {from:0, to:1},  // 1→2
+      {from:1, to:2},  // 2→3
+      {from:2, to:0},  // 3→1
+    ],
+  },
+  4: {
+    // 4/4 : 1=bas, 2=gauche, 3=droite, 4=haut
+    w:150, h:130,
+    nodes: [
+      {id:1, x:75,  y:110, label:'1'},
+      {id:2, x:20,  y:65,  label:'2'},
+      {id:3, x:130, y:65,  label:'3'},
+      {id:4, x:75,  y:20,  label:'4'},
+    ],
+    arrows: [
+      {from:0, to:1},  // 1→2
+      {from:1, to:3},  // 2→4 (via haut)
+      {from:3, to:2},  // 4→3 (redescend droite) — non, on fait 2→3→4
+      {from:2, to:3},  // 3→4
+    ],
+  },
 };
 
-// Courbes de transition entre positions (t∈[0,1] → {x,y})
-// Chaque segment = de positions[i] à positions[(i+1)%n]
-// avec un point de contrôle pour la courbe naturelle du poignet
-const ARM_CURVES = {
-  2: [
-    {cx:55, cy:145},  // 1→2 : monte légèrement à gauche
-    {cx:105,cy:55},   // 2→1 : redescend à droite
-  ],
-  3: [
-    {cx:60, cy:145},  // 1→2
-    {cx:118,cy:60},   // 2→3
-    {cx:55, cy:75},   // 3→1
-  ],
-  4: [
-    {cx:55, cy:145},  // 1→2
-    {cx:42, cy:65},   // 2→3
-    {cx:118,cy:65},   // 3→4
-    {cx:105,cy:135},  // 4→1
-  ],
+// Schéma 4/4 corrigé selon l'image : 1↓ 2←gauche 3→droite 4↑
+const BEAT_ARROWS = {
+  2: [[0,1],[1,0]],
+  3: [[0,1],[1,2],[2,0]],
+  4: [[0,1],[1,3],[3,2],[2,0]],  // 1→2→4→3→1 — NON
 };
+// Séquence correcte 4/4 : 1(bas)→2(gauche)→3(droite)→4(haut)→1
+// Index des nodes: 0=bas(1), 1=gauche(2), 2=droite(3), 3=haut(4)
+const BEAT_SEQ = {
+  2: [0,1],          // bas → haut → bas…
+  3: [0,1,2],        // bas → droite → haut…
+  4: [0,1,2,3],      // bas → gauche → droite → haut…
+};
+const BEAT_NODES_DEF = {
+  2: [{x:50,y:110,label:'1'},{x:50,y:20,label:'2'}],
+  3: [{x:45,y:110,label:'1'},{x:105,y:70,label:'2'},{x:45,y:20,label:'3'}],
+  4: [{x:75,y:110,label:'1'},{x:20,y:65,label:'2'},{x:130,y:65,label:'3'},{x:75,y:20,label:'4'}],
+};
+const BEAT_EDGES = {
+  2: [[0,1],[1,0]],
+  3: [[0,1],[1,2],[2,0]],
+  4: [[0,1],[1,3],[3,2],[2,0]],
+};
+const BEAT_W = {2:100,3:150,4:150};
+const BEAT_H = 130;
 
-const SHOULDER = {x:80, y:30};
-const ARM_LEN  = 115; // longueur totale bras+avant-bras
-
-function tipToAngles(tx, ty) {
-  // Calcule l'angle du bras (épaule→coude) et avant-bras (coude→tip)
-  // Modèle simplifié : bras droit (pas d'IK) — on fait juste pointer vers le tip
-  const dx = tx - SHOULDER.x, dy = ty - SHOULDER.y;
-  const dist = Math.sqrt(dx*dx+dy*dy);
-  const angle = Math.atan2(dy, dx);
-  // Coude à 40% du chemin
-  const elbowRatio = 0.42;
-  const ex = SHOULDER.x + Math.cos(angle)*dist*elbowRatio;
-  const ey = SHOULDER.y + Math.sin(angle)*dist*elbowRatio;
-  return {ex, ey, tx, ty};
+function arrowHead(x1,y1,x2,y2,col){
+  const dx=x2-x1,dy=y2-y1,len=Math.sqrt(dx*dx+dy*dy);
+  const ux=dx/len,uy=dy/len;
+  const ax=x2-ux*12,ay=y2-uy*12; // base de la flèche
+  const px=-uy*5,py=ux*5;
+  return `<polygon points="${x2},${y2} ${ax+px},${ay+py} ${ax-px},${ay-py}" fill="${col}"/>`;
 }
 
-function setArmPos(tx, ty) {
-  const {ex, ey} = tipToAngles(tx, ty);
-  // Bras haut
-  document.getElementById('arm-upper')?.setAttribute('x2', ex - SHOULDER.x);
-  document.getElementById('arm-upper')?.setAttribute('y2', ey - SHOULDER.y);
-  // Avant-bras
-  const al = document.getElementById('arm-lower');
-  if(al){al.setAttribute('x1',ex-SHOULDER.x);al.setAttribute('y1',ey-SHOULDER.y);
-         al.setAttribute('x2',tx-SHOULDER.x);al.setAttribute('y2',ty-SHOULDER.y);}
-  // Main + doigts (translate avec l'avant-bras)
-  const hand = document.getElementById('arm-hand');
-  const tip  = document.getElementById('arm-tip');
-  const dx = tx-SHOULDER.x, dy = ty-SHOULDER.y;
-  if(hand) hand.setAttribute('transform',`translate(${dx},${dy})`);
-  if(tip){tip.setAttribute('cx',dx);tip.setAttribute('cy',dy-7);}
-}
+function drawBeatDiagram(meter){
+  const el=document.getElementById('beat-diagram');
+  if(!el)return;
+  document.getElementById('beat-meter-label').textContent=meter;
+  const nodes=BEAT_NODES_DEF[meter];
+  const edges=BEAT_EDGES[meter];
+  const W=BEAT_W[meter], H=BEAT_H;
+  const col='var(--muted)';
 
-function drawArmDiagram(meter) {
-  const positions = ARM_POSITIONS[meter];
-  if (!positions) return;
-  document.getElementById('beat-meter-label').textContent = meter+'/4';
+  let svg=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="overflow:visible">`;
 
-  // Trace de la trajectoire
-  const curves = ARM_CURVES[meter];
-  let d = '';
-  positions.forEach((p,i) => {
-    const next = positions[(i+1)%positions.length];
-    const c = curves[i];
-    if(i===0) d += `M${p.x},${p.y}`;
-    d += ` Q${c.cx},${c.cy} ${next.x},${next.y}`;
+  // Flèches
+  edges.forEach(([i,j],ei)=>{
+    const a=nodes[i],b=nodes[j];
+    // raccourcir pour ne pas chevaucher les cercles
+    const dx=b.x-a.x,dy=b.y-a.y,len=Math.sqrt(dx*dx+dy*dy);
+    const ux=dx/len,uy=dy/len,r=16;
+    const x1=a.x+ux*r,y1=a.y+uy*r,x2=b.x-ux*r,y2=b.y-uy*r;
+    svg+=`<line id="beat-arrow-${ei}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"
+      stroke="${col}" stroke-width="2.5" stroke-linecap="round" opacity=".4"/>`;
+    svg+=`<g id="beat-arrowhead-${ei}" opacity=".4">${arrowHead(x1,y1,x2,y2,col)}</g>`;
   });
-  const trace = document.getElementById('beat-trace');
-  if(trace) trace.setAttribute('d',d);
 
-  // Numéros des temps
-  const numsEl = document.getElementById('beat-nums');
-  if(numsEl) numsEl.innerHTML = positions.map(p =>
-    `<text x="${p.x}" y="${p.y-10}" fill="var(--muted)" font-size="9">${p.label}</text>
-     <text x="${p.x}" y="${p.y+20}" fill="var(--muted)" font-size="8" opacity=".6">${p.dir}</text>
-     <circle cx="${p.x}" cy="${p.y}" r="3" fill="var(--border)" stroke="var(--muted)" stroke-width="1"/>`
-  ).join('');
+  // Cercles numérotés
+  nodes.forEach((n,i)=>{
+    const isFirst=i===0;
+    svg+=`<circle id="beat-node-${i}" cx="${n.x}" cy="${n.y}" r="15"
+      fill="${isFirst?'#5090d0':'var(--surface)'}"
+      stroke="${isFirst?'#5090d0':col}" stroke-width="2" opacity=".5"/>
+      <text x="${n.x}" y="${n.y+5}" text-anchor="middle" font-size="13"
+        font-family="DM Mono,monospace" font-weight="500"
+        fill="${isFirst?'white':col}" opacity=".6">${n.label}</text>`;
+  });
 
-  // Position initiale du bras
-  setArmPos(positions[0].x, positions[0].y);
+  svg+=`</svg>`;
+  el.innerHTML=svg;
 }
 
-// Animation
-let beatAnimFrame = null;
-let beatAnimStart = null;
+// Animation : allumer les flèches/noeuds l'un après l'autre
+let beatAnimFrame=null, beatAnimStart=null, beatLastSeg=-1;
 
-function bezierQ(x0,y0,cx,cy,x1,y1,t){
-  const mt=1-t;
-  return {x:mt*mt*x0+2*mt*t*cx+t*t*x1, y:mt*mt*y0+2*mt*t*cy+t*t*y1};
-}
+function animateBeat(meter, beatMs){
+  if(beatAnimFrame)cancelAnimationFrame(beatAnimFrame);
+  if(!beatCheck.checked)return;
+  drawBeatDiagram(meter);
+  const nodes=BEAT_NODES_DEF[meter];
+  const edges=BEAT_EDGES[meter];
+  const seq=BEAT_SEQ[meter];
+  beatAnimStart=null; beatLastSeg=-1;
+  const totalDur=seq.length*beatMs;
 
-function animateBeat(meter, beatDurationMs) {
-  if (beatAnimFrame) cancelAnimationFrame(beatAnimFrame);
-  if (!beatCheck.checked) return;
-  const positions = ARM_POSITIONS[meter];
-  const curves    = ARM_CURVES[meter];
-  if (!positions) return;
-  beatAnimStart = null;
-  const totalDur = positions.length * beatDurationMs;
+  function resetAll(){
+    nodes.forEach((_,i)=>{
+      const c=document.getElementById('beat-node-'+i);
+      const isFirst=i===0;
+      if(c){c.setAttribute('opacity','.5');c.setAttribute('fill',isFirst?'#5090d0':'var(--surface)');}
+    });
+    edges.forEach((_,ei)=>{
+      const l=document.getElementById('beat-arrow-'+ei);
+      const h=document.getElementById('beat-arrowhead-'+ei);
+      if(l)l.setAttribute('opacity','.4');
+      if(h)h.setAttribute('opacity','.4');
+    });
+  }
+
+  function highlight(segIdx){
+    if(segIdx===beatLastSeg)return;
+    beatLastSeg=segIdx;
+    resetAll();
+    const nodeIdx=seq[segIdx];
+    const c=document.getElementById('beat-node-'+nodeIdx);
+    if(c){
+      c.setAttribute('fill','var(--accent)');
+      c.setAttribute('opacity','1');
+      c.setAttribute('stroke','var(--accent)');
+    }
+    // Allumer la flèche qui part de ce nœud
+    edges.forEach(([from],ei)=>{
+      if(from===nodeIdx){
+        const l=document.getElementById('beat-arrow-'+ei);
+        const h=document.getElementById('beat-arrowhead-'+ei);
+        if(l)l.setAttribute('opacity','1');
+        if(h)h.setAttribute('opacity','1');
+      }
+    });
+  }
 
   function frame(ts){
-    if(!beatAnimStart) beatAnimStart=ts;
+    if(!beatAnimStart)beatAnimStart=ts;
     const elapsed=(ts-beatAnimStart)%totalDur;
-    const segIdx=Math.floor(elapsed/beatDurationMs)%positions.length;
-    const segT=(elapsed%beatDurationMs)/beatDurationMs;
-    const p0=positions[segIdx];
-    const p1=positions[(segIdx+1)%positions.length];
-    const c=curves[segIdx];
-    const pos=bezierQ(p0.x,p0.y,c.cx,c.cy,p1.x,p1.y,segT);
-
-    // Animer le bras
-    setArmPos(pos.x, pos.y);
-
-    // Couleur accent sur temps fort
-    const tip=document.getElementById('arm-tip');
-    if(tip) tip.setAttribute('fill', segIdx===0&&segT<.12 ? 'var(--accent2)' : 'var(--accent)');
-
-    // Numéro du temps courant
-    const beatNum=document.getElementById('beat-beat-num');
-    if(beatNum) beatNum.textContent = positions[segIdx].label+' — '+positions[segIdx].dir;
-
+    const segIdx=Math.floor(elapsed/beatMs)%seq.length;
+    highlight(segIdx);
     beatAnimFrame=requestAnimationFrame(frame);
   }
   beatAnimFrame=requestAnimationFrame(frame);
@@ -1428,28 +1422,21 @@ function animateBeat(meter, beatDurationMs) {
 
 function stopBeatAnim(){
   if(beatAnimFrame){cancelAnimationFrame(beatAnimFrame);beatAnimFrame=null;}
-  document.getElementById('beat-beat-num').textContent='—';
 }
 
 function startBeatAnim(){
-  if(!beatCheck.checked) return;
-  const meter=getMeter(), beat=60/getTempo();
-  drawArmDiagram(meter);
-  animateBeat(meter, beat*1000);
+  if(!beatCheck.checked)return;
+  const meter=getMeter(),beat=60/getTempo();
+  animateBeat(meter,beat*1000);
 }
 
-// Mise à jour quand la mesure change
-document.getElementById('meter').addEventListener('change', e=>{
-  if(beatCheck.checked) drawArmDiagram(parseInt(e.target.value));
+document.getElementById('meter').addEventListener('change',e=>{
+  if(beatCheck.checked)drawBeatDiagram(parseInt(e.target.value));
   stopBeatAnim();
 });
-
-// Lancer la battue quand on joue
-document.getElementById('btn-play').addEventListener('click',  ()=>setTimeout(()=>{ if(playing) startBeatAnim(); },200));
-document.getElementById('btn-metro').addEventListener('click', ()=>setTimeout(()=>{ if(playing) startBeatAnim(); },200));
-
-// Arrêter quand la lecture s'arrête
-setInterval(()=>{ if(!playing && beatAnimFrame) stopBeatAnim(); }, 300);
+document.getElementById('btn-play').addEventListener('click',()=>setTimeout(()=>{if(playing)startBeatAnim();},200));
+document.getElementById('btn-metro').addEventListener('click',()=>setTimeout(()=>{if(playing)startBeatAnim();},200));
+setInterval(()=>{if(!playing&&beatAnimFrame)stopBeatAnim();},300);
 </script>
 </body>
 </html>
