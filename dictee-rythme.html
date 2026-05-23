@@ -152,7 +152,7 @@ input[type=range]{padding:.2rem 0;accent-color:var(--accent)}
 </div>
 <header>
   <h1>Dictée de Rythme</h1>
-  <p>Steinway Grand Piano · Entraînement à l'oreille rythmique · <span style="color:var(--border)">v2.9</span></p>
+  <p>Steinway Grand Piano · Entraînement à l'oreille rythmique · <span style="color:var(--border)">v3.0</span></p>
 </header>
 <div class="layout">
 
@@ -265,23 +265,60 @@ input[type=range]{padding:.2rem 0;accent-color:var(--accent)}
     <!-- Affichage comptage -->
     <div id="count-display" style="display:none;margin-top:.6rem;padding:.5rem .75rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-size:1.1rem;font-family:'Playfair Display',serif;color:var(--accent);letter-spacing:.1em;text-align:center;min-height:36px"></div>
 
-    <!-- Battue de mesure -->
-    <div style="margin-top:1rem">
-      <div class="pt" style="margin-bottom:.6rem">Battue de mesure</div>
-      <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
-        <svg id="beat-svg" width="130" height="110" viewBox="0 0 130 110" style="flex-shrink:0;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:4px">
-          <!-- Paths drawn by JS -->
-          <g id="beat-paths"></g>
-          <!-- Numbered beat points -->
-          <g id="beat-points"></g>
-          <!-- Animated ball -->
-          <circle id="beat-ball" r="6" fill="var(--accent)" opacity="0" filter="url(#glow)"/>
-          <defs>
-            <filter id="glow"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-          </defs>
-        </svg>
-        <div style="font-size:.6rem;color:var(--muted);line-height:1.8" id="beat-legend"></div>
+      <!-- Battue de mesure (option) -->
+      <div style="display:flex;align-items:center;gap:.6rem">
+        <label style="position:relative;display:inline-block;width:36px;height:20px;cursor:pointer;flex-shrink:0">
+          <input type="checkbox" id="beat-on" style="opacity:0;width:0;height:0">
+          <span id="beat-slider" style="position:absolute;inset:0;background:var(--border);border-radius:20px;transition:.2s;"></span>
+          <span id="beat-knob" style="position:absolute;height:14px;width:14px;left:3px;bottom:3px;background:var(--muted);border-radius:50%;transition:.2s;"></span>
+        </label>
+        <span style="font-size:.65rem;color:var(--muted);letter-spacing:.05em">Battue de mesure animée</span>
       </div>
+    </div>
+
+    <!-- Affichage comptage -->
+    <div id="count-display" style="display:none;margin-top:.6rem;padding:.5rem .75rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-size:1.1rem;font-family:'Playfair Display',serif;color:var(--accent);letter-spacing:.1em;text-align:center;min-height:36px"></div>
+
+    <!-- Battue de mesure — bras animé -->
+    <div id="beat-panel" style="display:none;margin-top:.75rem;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.75rem;text-align:center">
+      <div style="font-size:.58rem;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;margin-bottom:.5rem">
+        Battue <span id="beat-meter-label">4/4</span> · temps <span id="beat-beat-num" style="color:var(--accent);font-size:.75rem">—</span>
+      </div>
+      <svg id="beat-arm-svg" width="160" height="170" viewBox="0 0 160 170" style="display:block;margin:0 auto;overflow:visible">
+        <defs>
+          <filter id="arm-glow">
+            <feGaussianBlur stdDeviation="3" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+        <!-- Bras : épaule fixe en haut centre, avant-bras + main -->
+        <g id="arm-group" transform="translate(80,30)">
+          <!-- Bras haut (épaule→coude) -->
+          <line id="arm-upper" x1="0" y1="0" x2="0" y2="40"
+            stroke="var(--muted)" stroke-width="8" stroke-linecap="round" opacity=".5"/>
+          <!-- Avant-bras (coude→poignet) -->
+          <line id="arm-lower" x1="0" y1="40" x2="0" y2="85"
+            stroke="var(--text)" stroke-width="7" stroke-linecap="round"/>
+          <!-- Main -->
+          <g id="arm-hand">
+            <!-- Paume -->
+            <ellipse cx="0" cy="95" rx="7" ry="9"
+              fill="var(--text)" opacity=".9"/>
+            <!-- Doigts -->
+            <line x1="-5" y1="92" x2="-8" y2="106" stroke="var(--text)" stroke-width="3.5" stroke-linecap="round"/>
+            <line x1="-1" y1="90" x2="-2" y2="107" stroke="var(--text)" stroke-width="3.5" stroke-linecap="round"/>
+            <line x1="3"  y1="90" x2="5"  y2="107" stroke="var(--text)" stroke-width="3.5" stroke-linecap="round"/>
+            <line x1="6"  y1="92" x2="10" y2="105" stroke="var(--text)" stroke-width="3.5" stroke-linecap="round"/>
+          </g>
+          <!-- Point lumineux au bout (poignet) -->
+          <circle id="arm-tip" cx="0" cy="88" r="5" fill="var(--accent)" filter="url(#arm-glow)" opacity=".9"/>
+        </g>
+        <!-- Trace du mouvement -->
+        <path id="beat-trace" d="" fill="none" stroke="var(--accent)" stroke-width="1.5"
+          stroke-dasharray="4,4" opacity=".3"/>
+        <!-- Numéros des temps -->
+        <g id="beat-nums" font-size="10" font-family="DM Mono,monospace" fill="var(--muted)" text-anchor="middle"></g>
+      </svg>
     </div>
 
     <div id="demo-panel" style="display:none;margin-top:1rem">
@@ -1213,98 +1250,177 @@ function updateCountToggle(){
 countCheck.addEventListener('change', updateCountToggle);
 updateCountToggle();
 
+// Toggle battue
+const beatCheck=document.getElementById('beat-on');
+const beatSlider=document.getElementById('beat-slider');
+const beatKnob=document.getElementById('beat-knob');
+function updateBeatToggle(){
+  if(beatCheck.checked){
+    beatSlider.style.background='var(--accent)';
+    beatKnob.style.transform='translateX(16px)';
+    beatKnob.style.background='var(--bg)';
+    document.getElementById('beat-panel').style.display='block';
+    drawArmDiagram(getMeter());
+  } else {
+    beatSlider.style.background='var(--border)';
+    beatKnob.style.transform='translateX(0)';
+    beatKnob.style.background='var(--muted)';
+    document.getElementById('beat-panel').style.display='none';
+    stopBeatAnim();
+  }
+}
+beatCheck.addEventListener('change', updateBeatToggle);
+
 // ═══════════════════════════════════════════════════════════
-// BATTUE DE MESURE — Diagramme SVG animé
+// BATTUE DE MESURE — Bras animé
+// Origine SVG : épaule à (80,30), bras vers le bas
+// Le poignet (tip) se déplace selon la trajectoire de battue
+// On fait pivoter le bras entier autour de l'épaule
 // ═══════════════════════════════════════════════════════════
-// Points de battue pour chaque métrique
-// Coordonnées dans un repère 130×110 (viewBox)
-// Convention chef d'orchestre : bas=frappé fort, haut=levé
-const BEAT_PATHS = {
-  2: {
-    points: [{x:65,y:85,label:'1\nBas'},{x:65,y:20,label:'2\nHaut'}],
-    legend: ['① Bas (temps fort)','② Haut'],
-    curves: ['M65,85 Q40,55 65,20','M65,20 Q90,55 65,85'],
-  },
-  3: {
-    points: [{x:65,y:85,label:'1\nBas'},{x:108,y:55,label:'2\nDroite'},{x:65,y:20,label:'3\nHaut'}],
-    legend: ['① Bas (temps fort)','② Droite','③ Haut'],
-    curves: ['M65,85 Q55,75 108,55','M108,55 Q95,30 65,20','M65,20 Q35,45 65,85'],
-  },
-  4: {
-    points: [{x:65,y:85,label:'1\nBas'},{x:25,y:52,label:'2\nGauche'},{x:105,y:52,label:'3\nDroite'},{x:65,y:20,label:'4\nHaut'}],
-    legend: ['① Bas (temps fort)','② Gauche','③ Droite','④ Haut'],
-    curves: ['M65,85 Q45,70 25,52','M25,52 Q50,35 65,20','M65,20 Q85,35 105,52','M105,52 Q85,70 65,85'],
-  },
+
+// Positions du poignet pour chaque temps (x,y dans viewBox 160x170)
+// Épaule fixe en (80,30)
+// Convention : 1=bas, 2=gauche(4/4)/droite(3/4), 3=droite(4/4)/haut(3/4), 4=haut
+const ARM_POSITIONS = {
+  2: [
+    {x:80, y:145, label:'1', dir:'Bas'},      // 1 — bas (rebond)
+    {x:80, y:55,  label:'2', dir:'Haut'},      // 2 — haut
+  ],
+  3: [
+    {x:80, y:145, label:'1', dir:'Bas'},       // 1 — bas
+    {x:118,y:105, label:'2', dir:'Droite'},    // 2 — droite
+    {x:80, y:55,  label:'3', dir:'Haut'},      // 3 — haut
+  ],
+  4: [
+    {x:80, y:145, label:'1', dir:'Bas'},       // 1 — bas
+    {x:42, y:105, label:'2', dir:'Gauche'},    // 2 — gauche
+    {x:118,y:105, label:'3', dir:'Droite'},    // 3 — droite
+    {x:80, y:55,  label:'4', dir:'Haut'},      // 4 — haut
+  ],
 };
 
+// Courbes de transition entre positions (t∈[0,1] → {x,y})
+// Chaque segment = de positions[i] à positions[(i+1)%n]
+// avec un point de contrôle pour la courbe naturelle du poignet
+const ARM_CURVES = {
+  2: [
+    {cx:55, cy:145},  // 1→2 : monte légèrement à gauche
+    {cx:105,cy:55},   // 2→1 : redescend à droite
+  ],
+  3: [
+    {cx:60, cy:145},  // 1→2
+    {cx:118,cy:60},   // 2→3
+    {cx:55, cy:75},   // 3→1
+  ],
+  4: [
+    {cx:55, cy:145},  // 1→2
+    {cx:42, cy:65},   // 2→3
+    {cx:118,cy:65},   // 3→4
+    {cx:105,cy:135},  // 4→1
+  ],
+};
+
+const SHOULDER = {x:80, y:30};
+const ARM_LEN  = 115; // longueur totale bras+avant-bras
+
+function tipToAngles(tx, ty) {
+  // Calcule l'angle du bras (épaule→coude) et avant-bras (coude→tip)
+  // Modèle simplifié : bras droit (pas d'IK) — on fait juste pointer vers le tip
+  const dx = tx - SHOULDER.x, dy = ty - SHOULDER.y;
+  const dist = Math.sqrt(dx*dx+dy*dy);
+  const angle = Math.atan2(dy, dx);
+  // Coude à 40% du chemin
+  const elbowRatio = 0.42;
+  const ex = SHOULDER.x + Math.cos(angle)*dist*elbowRatio;
+  const ey = SHOULDER.y + Math.sin(angle)*dist*elbowRatio;
+  return {ex, ey, tx, ty};
+}
+
+function setArmPos(tx, ty) {
+  const {ex, ey} = tipToAngles(tx, ty);
+  // Bras haut
+  document.getElementById('arm-upper')?.setAttribute('x2', ex - SHOULDER.x);
+  document.getElementById('arm-upper')?.setAttribute('y2', ey - SHOULDER.y);
+  // Avant-bras
+  const al = document.getElementById('arm-lower');
+  if(al){al.setAttribute('x1',ex-SHOULDER.x);al.setAttribute('y1',ey-SHOULDER.y);
+         al.setAttribute('x2',tx-SHOULDER.x);al.setAttribute('y2',ty-SHOULDER.y);}
+  // Main + doigts (translate avec l'avant-bras)
+  const hand = document.getElementById('arm-hand');
+  const tip  = document.getElementById('arm-tip');
+  const dx = tx-SHOULDER.x, dy = ty-SHOULDER.y;
+  if(hand) hand.setAttribute('transform',`translate(${dx},${dy})`);
+  if(tip){tip.setAttribute('cx',dx);tip.setAttribute('cy',dy-7);}
+}
+
+function drawArmDiagram(meter) {
+  const positions = ARM_POSITIONS[meter];
+  if (!positions) return;
+  document.getElementById('beat-meter-label').textContent = meter+'/4';
+
+  // Trace de la trajectoire
+  const curves = ARM_CURVES[meter];
+  let d = '';
+  positions.forEach((p,i) => {
+    const next = positions[(i+1)%positions.length];
+    const c = curves[i];
+    if(i===0) d += `M${p.x},${p.y}`;
+    d += ` Q${c.cx},${c.cy} ${next.x},${next.y}`;
+  });
+  const trace = document.getElementById('beat-trace');
+  if(trace) trace.setAttribute('d',d);
+
+  // Numéros des temps
+  const numsEl = document.getElementById('beat-nums');
+  if(numsEl) numsEl.innerHTML = positions.map(p =>
+    `<text x="${p.x}" y="${p.y-10}" fill="var(--muted)" font-size="9">${p.label}</text>
+     <text x="${p.x}" y="${p.y+20}" fill="var(--muted)" font-size="8" opacity=".6">${p.dir}</text>
+     <circle cx="${p.x}" cy="${p.y}" r="3" fill="var(--border)" stroke="var(--muted)" stroke-width="1"/>`
+  ).join('');
+
+  // Position initiale du bras
+  setArmPos(positions[0].x, positions[0].y);
+}
+
+// Animation
 let beatAnimFrame = null;
 let beatAnimStart = null;
-let beatAnimMeter = 0;
 
-function drawBeatDiagram(meter) {
-  const svg = document.getElementById('beat-svg');
-  const pathsEl = document.getElementById('beat-paths');
-  const pointsEl = document.getElementById('beat-points');
-  const legend = document.getElementById('beat-legend');
-  const bd = BEAT_PATHS[meter];
-  if (!bd) return;
-
-  // Chemins
-  pathsEl.innerHTML = bd.curves.map((d,i) =>
-    `<path d="${d}" fill="none" stroke="var(--border)" stroke-width="1.5" stroke-dasharray="4,3" opacity=".7"/>`
-  ).join('');
-
-  // Points numérotés
-  pointsEl.innerHTML = bd.points.map((p,i) => {
-    const isFirst = i === 0;
-    return `<circle cx="${p.x}" cy="${p.y}" r="${isFirst?7:5}" fill="${isFirst?'var(--accent)':'var(--surface2)'}" stroke="${isFirst?'var(--accent)':'var(--muted)'}" stroke-width="1.5"/>
-      <text x="${p.x}" y="${p.y+4}" text-anchor="middle" dominant-baseline="middle" font-size="8" fill="${isFirst?'var(--bg)':'var(--muted)'}" font-family="DM Mono,monospace">${i+1}</text>`;
-  }).join('');
-
-  // Légende
-  legend.innerHTML = bd.legend.map(l =>
-    `<div style="display:flex;align-items:center;gap:.3rem"><span style="width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block;flex-shrink:0"></span>${l}</div>`
-  ).join('');
+function bezierQ(x0,y0,cx,cy,x1,y1,t){
+  const mt=1-t;
+  return {x:mt*mt*x0+2*mt*t*cx+t*t*x1, y:mt*mt*y0+2*mt*t*cy+t*t*y1};
 }
 
 function animateBeat(meter, beatDurationMs) {
   if (beatAnimFrame) cancelAnimationFrame(beatAnimFrame);
-  const bd = BEAT_PATHS[meter];
-  if (!bd) return;
-  const ball = document.getElementById('beat-ball');
-  ball.setAttribute('opacity','1');
-  beatAnimMeter = meter;
+  if (!beatCheck.checked) return;
+  const positions = ARM_POSITIONS[meter];
+  const curves    = ARM_CURVES[meter];
+  if (!positions) return;
   beatAnimStart = null;
-  const totalDur = bd.points.length * beatDurationMs;
-
-  // Parse un chemin SVG simple (Q bezier) en fonction de t∈[0,1]
-  function bezierQ(x0,y0,cx,cy,x1,y1,t){
-    const mt=1-t;
-    return {x:mt*mt*x0+2*mt*t*cx+t*t*x1, y:mt*mt*y0+2*mt*t*cy+t*t*y1};
-  }
-
-  // Extraire points de contrôle depuis "M x0,y0 Q cx,cy x1,y1"
-  function parseBezier(d){
-    const m=d.match(/M([\d.]+),([\d.]+)\s+Q([\d.]+),([\d.]+)\s+([\d.]+),([\d.]+)/);
-    if(!m)return null;
-    return {x0:+m[1],y0:+m[2],cx:+m[3],cy:+m[4],x1:+m[5],y1:+m[6]};
-  }
-
-  const segments = bd.curves.map(parseBezier);
+  const totalDur = positions.length * beatDurationMs;
 
   function frame(ts){
     if(!beatAnimStart) beatAnimStart=ts;
     const elapsed=(ts-beatAnimStart)%totalDur;
-    const segIdx=Math.floor(elapsed/beatDurationMs)%bd.points.length;
+    const segIdx=Math.floor(elapsed/beatDurationMs)%positions.length;
     const segT=(elapsed%beatDurationMs)/beatDurationMs;
-    const seg=segments[segIdx];
-    if(seg){
-      const pos=bezierQ(seg.x0,seg.y0,seg.cx,seg.cy,seg.x1,seg.y1,segT);
-      ball.setAttribute('cx',pos.x);
-      ball.setAttribute('cy',pos.y);
-      // Flash sur le temps fort
-      ball.setAttribute('fill', segIdx===0&&segT<.15 ? 'var(--accent2)' : 'var(--accent)');
-    }
+    const p0=positions[segIdx];
+    const p1=positions[(segIdx+1)%positions.length];
+    const c=curves[segIdx];
+    const pos=bezierQ(p0.x,p0.y,c.cx,c.cy,p1.x,p1.y,segT);
+
+    // Animer le bras
+    setArmPos(pos.x, pos.y);
+
+    // Couleur accent sur temps fort
+    const tip=document.getElementById('arm-tip');
+    if(tip) tip.setAttribute('fill', segIdx===0&&segT<.12 ? 'var(--accent2)' : 'var(--accent)');
+
+    // Numéro du temps courant
+    const beatNum=document.getElementById('beat-beat-num');
+    if(beatNum) beatNum.textContent = positions[segIdx].label+' — '+positions[segIdx].dir;
+
     beatAnimFrame=requestAnimationFrame(frame);
   }
   beatAnimFrame=requestAnimationFrame(frame);
@@ -1312,34 +1428,28 @@ function animateBeat(meter, beatDurationMs) {
 
 function stopBeatAnim(){
   if(beatAnimFrame){cancelAnimationFrame(beatAnimFrame);beatAnimFrame=null;}
-  const ball=document.getElementById('beat-ball');
-  if(ball) ball.setAttribute('opacity','0');
+  document.getElementById('beat-beat-num').textContent='—';
 }
 
-// Redessiner quand la mesure change
-document.getElementById('meter').addEventListener('change', e=>{
-  drawBeatDiagram(parseInt(e.target.value));
-  stopBeatAnim();
-});
-
-// Lancer l'animation quand le métronome ou la séquence joue
-const _origPlayMetro = playMetro;
-// On intercepte playRhythm/playMetro pour lancer/arrêter la battue
-// (on le fait via le flag playing déjà géré)
 function startBeatAnim(){
+  if(!beatCheck.checked) return;
   const meter=getMeter(), beat=60/getTempo();
+  drawArmDiagram(meter);
   animateBeat(meter, beat*1000);
 }
 
-// Patch : lancer battue quand on joue
-document.getElementById('btn-play').addEventListener('click', ()=>setTimeout(()=>{ if(playing) startBeatAnim(); },200));
+// Mise à jour quand la mesure change
+document.getElementById('meter').addEventListener('change', e=>{
+  if(beatCheck.checked) drawArmDiagram(parseInt(e.target.value));
+  stopBeatAnim();
+});
+
+// Lancer la battue quand on joue
+document.getElementById('btn-play').addEventListener('click',  ()=>setTimeout(()=>{ if(playing) startBeatAnim(); },200));
 document.getElementById('btn-metro').addEventListener('click', ()=>setTimeout(()=>{ if(playing) startBeatAnim(); },200));
 
-// Arrêter la battue quand la lecture s'arrête — on surveille `playing`
+// Arrêter quand la lecture s'arrête
 setInterval(()=>{ if(!playing && beatAnimFrame) stopBeatAnim(); }, 300);
-
-// Init diagramme
-drawBeatDiagram(parseInt(document.getElementById('meter').value));
 </script>
 </body>
 </html>
