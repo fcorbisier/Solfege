@@ -152,7 +152,7 @@ input[type=range]{padding:.2rem 0;accent-color:var(--accent)}
 </div>
 <header>
   <h1>Dictée de Rythme</h1>
-  <p>Steinway Grand Piano · Entraînement à l'oreille rythmique · <span style="color:var(--border)">v2.3</span></p>
+  <p>Steinway Grand Piano · Entraînement à l'oreille rythmique · <span style="color:var(--border)">v2.8</span></p>
 </header>
 <div class="layout">
 
@@ -199,7 +199,13 @@ input[type=range]{padding:.2rem 0;accent-color:var(--accent)}
       <div><div class="sl">Précision</div><div class="sv" id="sc-p" style="font-size:1.3rem">—</div></div>
     </div>
     <div class="dots" id="dots"></div>
+    <!-- Historique des erreurs par figure -->
+    <div style="margin-top:.9rem">
+      <div class="pt" style="margin-bottom:.6rem">Erreurs par figure</div>
+      <div id="fig-stats"><span style="color:var(--muted);font-size:.7rem;font-style:italic">Aucune donnée encore</span></div>
+    </div>
     <button class="btn btn-sm" style="margin-top:.8rem;color:var(--muted)" onclick="resetScore()">Réinitialiser</button>
+    <div id="save-indicator" style="font-size:.6rem;color:var(--muted);margin-top:.4rem;opacity:0;transition:opacity .5s">💾 Sauvegardé</div>
   </div>
 </div>
 
@@ -218,16 +224,46 @@ input[type=range]{padding:.2rem 0;accent-color:var(--accent)}
       <button class="btn" id="btn-metro" onclick="playMetro()" disabled>♩ Métronome seul</button>
       <button class="btn" id="btn-reveal" onclick="revealAll()" disabled>◎ Révéler</button>
       <button class="btn" id="btn-demo" onclick="playDemo()" disabled style="border-color:var(--accent2);color:var(--accent2)">👐 Démonstration</button>
+      <button class="btn" id="btn-tap" onclick="startTapMode()" disabled style="border-color:var(--success);color:var(--success)">🥁 Frapper</button>
     </div>
-    <!-- Option métronome continu -->
-    <div style="margin-top:.75rem;display:flex;align-items:center;gap:.6rem">
-      <label style="position:relative;display:inline-block;width:36px;height:20px;cursor:pointer">
-        <input type="checkbox" id="metro-on" checked style="opacity:0;width:0;height:0">
-        <span id="metro-slider" style="position:absolute;inset:0;background:var(--border);border-radius:20px;transition:.2s;"></span>
-        <span id="metro-knob" style="position:absolute;height:14px;width:14px;left:3px;bottom:3px;background:var(--muted);border-radius:50%;transition:.2s;"></span>
-      </label>
-      <span style="font-size:.65rem;color:var(--muted);letter-spacing:.05em">Métronome pendant la lecture</span>
+
+    <!-- Mode frappe libre -->
+    <div id="tap-panel" style="display:none;margin-top:.75rem;padding:.75rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px">
+      <div style="font-size:.6rem;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;margin-bottom:.5rem">Mode frappe — <span id="tap-status">Prêt</span></div>
+      <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+        <button id="tap-btn" style="width:72px;height:72px;border-radius:50%;background:var(--surface);border:2px solid var(--success);color:var(--success);font-size:1.8rem;cursor:pointer;transition:all .08s;flex-shrink:0" onclick="registerTap()">🥁</button>
+        <div style="flex:1">
+          <div id="tap-viz" style="display:flex;gap:.3rem;flex-wrap:wrap;min-height:28px;align-items:center"></div>
+          <div style="font-size:.6rem;color:var(--muted);margin-top:.4rem">Barre espace ou clic sur le tambour</div>
+        </div>
+      </div>
+      <div id="tap-result" style="margin-top:.6rem;font-size:.75rem;display:none"></div>
+      <button class="btn btn-sm" style="margin-top:.5rem" onclick="stopTapMode()">✗ Annuler</button>
     </div>
+    <!-- Options -->
+    <div style="margin-top:.75rem;display:flex;flex-direction:column;gap:.5rem">
+      <!-- Métronome continu -->
+      <div style="display:flex;align-items:center;gap:.6rem">
+        <label style="position:relative;display:inline-block;width:36px;height:20px;cursor:pointer;flex-shrink:0">
+          <input type="checkbox" id="metro-on" checked style="opacity:0;width:0;height:0">
+          <span id="metro-slider" style="position:absolute;inset:0;background:var(--border);border-radius:20px;transition:.2s;"></span>
+          <span id="metro-knob" style="position:absolute;height:14px;width:14px;left:3px;bottom:3px;background:var(--muted);border-radius:50%;transition:.2s;"></span>
+        </label>
+        <span style="font-size:.65rem;color:var(--muted);letter-spacing:.05em">Métronome pendant la lecture</span>
+      </div>
+      <!-- Comptage à voix haute -->
+      <div style="display:flex;align-items:center;gap:.6rem">
+        <label style="position:relative;display:inline-block;width:36px;height:20px;cursor:pointer;flex-shrink:0">
+          <input type="checkbox" id="count-on" style="opacity:0;width:0;height:0">
+          <span id="count-slider" style="position:absolute;inset:0;background:var(--border);border-radius:20px;transition:.2s;"></span>
+          <span id="count-knob" style="position:absolute;height:14px;width:14px;left:3px;bottom:3px;background:var(--muted);border-radius:50%;transition:.2s;"></span>
+        </label>
+        <span style="font-size:.65rem;color:var(--muted);letter-spacing:.05em">Comptage (1 et 2 et…)</span>
+      </div>
+    </div>
+
+    <!-- Affichage comptage -->
+    <div id="count-display" style="display:none;margin-top:.6rem;padding:.5rem .75rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-size:1.1rem;font-family:'Playfair Display',serif;color:var(--accent);letter-spacing:.1em;text-align:center;min-height:36px"></div>
 
     <!-- Battue de mesure -->
     <div style="margin-top:1rem">
@@ -507,6 +543,9 @@ const DEFAULT_ON=new Set(['noire','blanche','2croches','4dcr','croche-2dcr','con
 let currentSeq=[],userAns=[],revealed=false,playing=false;
 let score={t:0,ok:0,ko:0,h:[]};
 let sampler=null, samplerReady=false;
+// Historique des erreurs par figure
+let figStats={};
+GROUPS.forEach(g=>figStats[g.id]={seen:0,missed:0});
 function G(id){return GROUPS.find(g=>g.id===id);}
 
 // ═══════════════════════════════════════════════════════════
@@ -589,19 +628,218 @@ function getTempo(){return parseInt(document.getElementById('tempo').value);}
 function getBars(){return parseInt(document.getElementById('bars').value);}
 
 function metroOn(){ return document.getElementById('metro-on')?.checked ?? true; }
+function countOn(){ return document.getElementById('count-on')?.checked ?? false; }
+
+// ═══════════════════════════════════════════════════════════
+// MODE FRAPPE LIBRE
+// ═══════════════════════════════════════════════════════════
+let tapState = {
+  active: false,
+  startTime: null,      // temps de départ (après intro métronome)
+  taps: [],             // timestamps des frappes en ms depuis startTime
+  metroInterval: null,  // setInterval du métronome visuel
+  expectedTimes: [],    // temps attendus des notes en ms
+  beat: 0,              // durée d'une noire en ms
+  totalDur: 0,          // durée totale de la séquence en ms
+  endTimer: null,
+};
+const TAP_TOLERANCE = 120; // ms — tolérance pour considérer une frappe correcte
+
+function computeExpectedTimes(seq, beatMs) {
+  const times = [];
+  let cursor = 0;
+  seq.forEach(id => {
+    const grp = G(id);
+    grp.events.forEach(ev => {
+      if (!ev.r) times.push((cursor + ev.o) * beatMs);
+    });
+    cursor += grp.beats;
+  });
+  return times;
+}
+
+async function startTapMode() {
+  if (!samplerReady) { await ensureSampler(); }
+  if (playing) return;
+  if (!currentSeq.length) return;
+
+  document.getElementById('tap-panel').style.display = 'block';
+  document.getElementById('tap-result').style.display = 'none';
+  document.getElementById('tap-viz').innerHTML = '';
+  document.getElementById('tap-status').textContent = 'Intro métronome…';
+  document.getElementById('tap-btn').style.borderColor = 'var(--muted)';
+  document.getElementById('tap-btn').style.color = 'var(--muted)';
+
+  const ac = getAC();
+  const beat = 60 / getTempo();
+  const meter = getMeter();
+  tapState.beat = beat * 1000;
+  tapState.taps = [];
+  tapState.active = false;
+
+  // Calcul des temps attendus
+  tapState.expectedTimes = computeExpectedTimes(currentSeq, beat * 1000);
+  tapState.totalDur = currentSeq.reduce((s,id)=>s+(G(id)?.beats||0),0) * beat * 1000;
+
+  // Intro métronome (1 mesure)
+  let t = ac.currentTime + 0.1;
+  for (let i = 0; i < meter; i++) { click(t, i===0); t += beat; }
+  const introMs = (t - ac.currentTime) * 1000 + 100;
+
+  setTimeout(() => {
+    // Démarrer la frappe
+    tapState.active = true;
+    tapState.startTime = performance.now();
+    document.getElementById('tap-status').textContent = 'Frappez !';
+    document.getElementById('tap-btn').style.borderColor = 'var(--success)';
+    document.getElementById('tap-btn').style.color = 'var(--success)';
+
+    // Métronome visuel pendant la séquence
+    if (metroOn()) {
+      let b = 0;
+      tapState.metroInterval = setInterval(() => {
+        const ac2 = getAC();
+        click(ac2.currentTime + 0.01, b % meter === 0);
+        flashM();
+        b++;
+        if (b * tapState.beat >= tapState.totalDur + tapState.beat) {
+          clearInterval(tapState.metroInterval);
+        }
+      }, tapState.beat);
+    }
+
+    // Fin automatique après la durée de la séquence + 1 temps de grâce
+    tapState.endTimer = setTimeout(finalizeTap, tapState.totalDur + beat * 1000);
+  }, introMs);
+}
+
+function registerTap() {
+  if (!tapState.active) return;
+  const now = performance.now() - tapState.startTime;
+  tapState.taps.push(now);
+
+  // Flash du bouton
+  const btn = document.getElementById('tap-btn');
+  btn.style.background = 'rgba(126,200,126,.2)';
+  setTimeout(() => btn.style.background = 'var(--surface)', 100);
+
+  // Jouer un son de feedback
+  if (samplerReady) playPiano(Tone.now() + 0.01, 0.15);
+
+  // Ajouter un point dans la visualisation
+  const viz = document.getElementById('tap-viz');
+  const dot = document.createElement('div');
+  dot.style.cssText = 'width:10px;height:10px;border-radius:50%;background:var(--accent);flex-shrink:0;transition:background .3s';
+  viz.appendChild(dot);
+
+  // Si on a atteint le nombre de frappes attendu, finaliser
+  if (tapState.taps.length >= tapState.expectedTimes.length) {
+    clearTimeout(tapState.endTimer);
+    setTimeout(finalizeTap, 300);
+  }
+}
+
+function finalizeTap() {
+  if (!tapState.active) return;
+  tapState.active = false;
+  clearInterval(tapState.metroInterval);
+
+  document.getElementById('tap-status').textContent = 'Analyse…';
+  document.getElementById('tap-btn').style.borderColor = 'var(--border)';
+  document.getElementById('tap-btn').style.color = 'var(--muted)';
+
+  const expected = tapState.expectedTimes;
+  const taps = tapState.taps;
+  const tol = TAP_TOLERANCE;
+
+  // Associer chaque frappe à l'événement attendu le plus proche
+  let correct = 0, total = expected.length;
+  const viz = document.getElementById('tap-viz');
+  const dots = viz.querySelectorAll('div');
+
+  const matched = new Set();
+  expected.forEach((exp, ei) => {
+    // Chercher la frappe la plus proche
+    let bestIdx = -1, bestDist = Infinity;
+    taps.forEach((tap, ti) => {
+      if (matched.has(ti)) return;
+      const dist = Math.abs(tap - exp);
+      if (dist < bestDist) { bestDist = dist; bestIdx = ti; }
+    });
+
+    if (bestIdx >= 0 && bestDist <= tol) {
+      matched.add(bestIdx);
+      correct++;
+      if (dots[bestIdx]) dots[bestIdx].style.background = 'var(--success)';
+    } else {
+      // Frappe manquée — ajouter un point rouge
+      const dot = document.createElement('div');
+      dot.style.cssText = 'width:10px;height:10px;border-radius:50%;background:var(--error);flex-shrink:0;border:1px dashed var(--error)';
+      viz.insertBefore(dot, viz.children[ei] || null);
+    }
+  });
+
+  // Frappes en trop
+  taps.forEach((_, ti) => {
+    if (!matched.has(ti) && dots[ti]) dots[ti].style.background = 'var(--error)';
+  });
+
+  const pct = Math.round(correct / total * 100);
+  const res = document.getElementById('tap-result');
+  res.style.display = 'block';
+  res.style.color = pct >= 80 ? 'var(--success)' : pct >= 50 ? 'var(--accent)' : 'var(--error)';
+  res.textContent = `${correct}/${total} frappes correctes (±${tol}ms) — ${pct}%`;
+  document.getElementById('tap-status').textContent = 'Terminé';
+
+  // Révéler la séquence
+  revealAll();
+}
+
+function stopTapMode() {
+  tapState.active = false;
+  clearInterval(tapState.metroInterval);
+  clearTimeout(tapState.endTimer);
+  document.getElementById('tap-panel').style.display = 'none';
+}
+
+// Génère les labels de comptage selon la métrique
+// ex: 4/4 → ['1','et','2','et','3','et','4','et'] pour les croches
+function buildCountLabels(meter, totalBeats) {
+  const labels = [];
+  for (let b = 0; b < totalBeats; b++) {
+    const beat = (b % meter) + 1;
+    labels.push({ t: b,     label: String(beat), strong: true  });
+    labels.push({ t: b+0.5, label: 'et',         strong: false });
+  }
+  return labels;
+}
+
+function showCount(label, strong) {
+  const el = document.getElementById('count-display');
+  if (!el) return;
+  el.style.color = strong ? 'var(--accent)' : 'var(--muted)';
+  el.style.fontSize = strong ? '1.2rem' : '0.85rem';
+  el.textContent = label;
+}
 
 function playRhythm(seq){
   if(playing||!samplerReady)return;seq=seq||currentSeq;if(!seq.length)return;
   const ac=getAC(),beat=60/getTempo(),meter=getMeter();
   playing=true;document.getElementById('play-ind').classList.add('on');document.getElementById('btn-play').disabled=true;
+
+  // Afficher le comptage si activé
+  const countEl = document.getElementById('count-display');
+  if(countOn()) { countEl.style.display='block'; showCount('…',''); }
+  else countEl.style.display='none';
+
   let t=ac.currentTime+.1;
-  // Mesure d'intro au métronome
+  // Mesure d'intro
   for(let i=0;i<meter;i++){click(t,i===0);t+=beat;}t+=beat*.2;
   const seqStart=t;
-  // Durée totale de la séquence
   const totalBeats=seq.reduce((s,id)=>s+(G(id)?.beats||0),0);
   const totalDur=totalBeats*beat;
-  // Métronome continu pendant la séquence si activé
+
+  // Métronome continu
   if(metroOn()){
     for(let b=0;b<totalBeats;b++){
       const bt=seqStart+b*beat;
@@ -609,6 +847,18 @@ function playRhythm(seq){
       setTimeout(flashM,(bt-ac.currentTime)*1000);
     }
   }
+
+  // Comptage à voix haute — tous les demi-temps (noire + croche)
+  if(countOn()){
+    const countLabels = buildCountLabels(meter, totalBeats);
+    countLabels.forEach(({t:offset, label, strong}) => {
+      const tCount = seqStart + offset * beat;
+      if(tCount < seqStart + totalDur) {
+        setTimeout(() => showCount(label, strong), (tCount - ac.currentTime)*1000);
+      }
+    });
+  }
+
   // Notes du rythme
   const nc=document.querySelectorAll('.ncell');
   let cursor=0;
@@ -620,7 +870,14 @@ function playRhythm(seq){
     playGrp(grp,tNote,beat);
     cursor+=grp.beats;
   });
-  setTimeout(()=>{nc.forEach(e=>e.classList.remove('active'));document.getElementById('play-ind').classList.remove('on');document.getElementById('btn-play').disabled=false;playing=false;},(seqStart+totalDur-ac.currentTime)*1000+400);
+
+  setTimeout(()=>{
+    nc.forEach(e=>e.classList.remove('active'));
+    document.getElementById('play-ind').classList.remove('on');
+    document.getElementById('btn-play').disabled=false;
+    if(countOn()){ countEl.textContent=''; }
+    playing=false;
+  },(seqStart+totalDur-ac.currentTime)*1000+400);
 }
 
 function playMetro(){
@@ -666,9 +923,26 @@ function playDemo(){
 }
 
 // ═══════════════════════════════════════════════════════════
-// GENERATION
+// GENERATION + RÉPÉTITION ESPACÉE
 // ═══════════════════════════════════════════════════════════
 function activeGroups(){return GROUPS.filter(g=>document.getElementById('tog-'+g.id)?.checked);}
+
+// Poids par figure pour répétition espacée
+let figWeights = {};
+GROUPS.forEach(g => figWeights[g.id] = 1.0);
+
+function updateFigWeight(id, correct) {
+  if (correct) figWeights[id] = Math.max(0.2, (figWeights[id]||1) * 0.65);
+  else         figWeights[id] = Math.min(4.0, (figWeights[id]||1) * 1.8);
+}
+
+function weightedPickFig(pool) {
+  const weights = pool.map(g => figWeights[g.id] || 1);
+  const total = weights.reduce((a,b)=>a+b, 0);
+  let r = Math.random() * total;
+  for (let i=0; i<pool.length; i++) { r -= weights[i]; if (r<=0) return pool[i]; }
+  return pool[pool.length-1];
+}
 
 async function generate(){
   const meter=getMeter(),bars=getBars(),active=activeGroups(),target=meter*bars;
@@ -678,13 +952,14 @@ async function generate(){
     const inBar=meter-bb,maxFit=Math.min(target-total,inBar);
     const pool=active.filter(g=>g.beats<=maxFit+.001);if(!pool.length)break;
     const lastCat=seq.length?G(seq[seq.length-1])?.cat:null;
-    const w=[];pool.forEach(g=>{const wt=(g.cat==='silences'&&lastCat==='silences')?1:g.cat==='silences'?3:10;for(let i=0;i<wt;i++)w.push(g);});
-    const pick=w[Math.floor(Math.random()*w.length)];
+    // Filtrer silences consécutifs puis tirer selon les poids de répétition espacée
+    const poolFiltered = pool.filter(g => !(g.cat==='silences' && lastCat==='silences'));
+    const pick = weightedPickFig(poolFiltered.length ? poolFiltered : pool);
     seq.push(pick.id);total+=pick.beats;bb+=pick.beats;
     if(Math.abs(bb-meter)<.001)bb=0;else if(bb>meter)bb=bb%meter;
   }
   currentSeq=seq;revealed=false;renderStaff(true);resetAns();updateBL();
-  document.getElementById('btn-play').disabled=false;document.getElementById('btn-reveal').disabled=false;document.getElementById('btn-metro').disabled=false;document.getElementById('btn-demo').disabled=false;
+  document.getElementById('btn-play').disabled=false;document.getElementById('btn-reveal').disabled=false;document.getElementById('btn-metro').disabled=false;document.getElementById('btn-demo').disabled=false;document.getElementById('btn-tap').disabled=false;
   await ensureSampler();
   setTimeout(playRhythm,400);
 }
@@ -781,7 +1056,14 @@ function checkAnswer(){
   if(Math.abs(used-target)>.001){showR(false,`Total incorrect : ${used} temps, ${target} attendus.`);return;}
   const res=currentSeq.map((id,i)=>id===userAns[i]),allOk=res.every(Boolean)&&userAns.length===currentSeq.length;
   renderAns(res);revealAll();
-  score.t++;allOk?(score.ok++,score.h.push('ok')):(score.ko++,score.h.push('ko'));updateScore();
+  // Tracking + répétition espacée
+  currentSeq.forEach((id,i)=>{
+    if(!figStats[id])figStats[id]={seen:0,missed:0};
+    figStats[id].seen++;
+    if(!res[i])figStats[id].missed++;
+    updateFigWeight(id, res[i]);
+  });
+  score.t++;allOk?(score.ok++,score.h.push('ok')):(score.ko++,score.h.push('ko'));updateScore();saveProgress();
   allOk?showR(true,'✓ Parfait ! Le rythme est correct.')
     :showR(false,`✗ ${res.filter(r=>!r).length} groupe(s) incorrect(s). Rythme : ${currentSeq.map(id=>G(id)?.label).join(' · ')}`);
 }
@@ -791,8 +1073,70 @@ function updateScore(){
   document.getElementById('sc-t').textContent=score.t;document.getElementById('sc-ok').textContent=score.ok;
   document.getElementById('sc-ko').textContent=score.ko;document.getElementById('sc-p').textContent=score.t?Math.round(score.ok/score.t*100)+'%':'—';
   const el=document.getElementById('dots');el.innerHTML='';score.h.forEach(h=>{const d=document.createElement('div');d.className='dot '+h;el.appendChild(d);});
+  renderFigStats();
 }
-function resetScore(){score={t:0,ok:0,ko:0,h:[]};updateScore();}
+
+function renderFigStats(){
+  const el=document.getElementById('fig-stats');if(!el)return;
+  const tracked=GROUPS.filter(g=>figStats[g.id]?.seen>0);
+  if(!tracked.length){el.innerHTML='<span style="color:var(--muted);font-size:.7rem;font-style:italic">Aucune donnée encore</span>';return;}
+  el.innerHTML='';
+  const sorted=[...tracked].sort((a,b)=>{
+    const ra=figStats[a.id].missed/figStats[a.id].seen;
+    const rb=figStats[b.id].missed/figStats[b.id].seen;
+    return rb-ra;
+  });
+  sorted.forEach(grp=>{
+    const {seen,missed}=figStats[grp.id];
+    const rate=Math.round(missed/seen*100);
+    const w=figWeights[grp.id]||1;
+    const freqDots=w>=3?'●●●':w>=1.5?'●●○':w>=0.5?'●○○':'○○○';
+    const freqColor=w>=3?'var(--error)':w>=1.5?'var(--accent)':'var(--success)';
+    const col=grp.cat==='silences'?'var(--accent2)':'var(--text)';
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:.4rem;margin-bottom:.3rem';
+    row.innerHTML=`
+      <span style="width:20px;flex-shrink:0">${svgNote(grp.id,col,20,27)}</span>
+      <span style="font-size:.6rem;color:var(--muted);width:80px;flex-shrink:0;line-height:1.2">${grp.label}</span>
+      <div style="flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden">
+        <div style="width:${rate}%;height:100%;background:${rate>60?'var(--error)':rate>30?'var(--accent)':'var(--success)'};border-radius:3px;transition:width .4s"></div>
+      </div>
+      <span style="font-size:.6rem;color:var(--muted);width:24px;text-align:right">${missed}/${seen}</span>
+      <span style="font-size:.6rem;color:${freqColor};width:20px;letter-spacing:-.1em" title="Fréquence répétition">${freqDots}</span>`;
+    el.appendChild(row);
+  });
+}
+
+function resetScore(){
+  if(!confirm('Réinitialiser tout le score et l\'historique ?'))return;
+  score={t:0,ok:0,ko:0,h:[]};
+  GROUPS.forEach(g=>{figStats[g.id]={seen:0,missed:0};figWeights[g.id]=1.0;});
+  saveProgress();updateScore();
+}
+
+// ═══════════════════════════════════════════════════════════
+// PERSISTANCE localStorage
+// ═══════════════════════════════════════════════════════════
+const STORAGE_KEY_R='rythme_progress_v1';
+
+function saveProgress(){
+  try{
+    localStorage.setItem(STORAGE_KEY_R,JSON.stringify({score,figStats,figWeights}));
+    const ind=document.getElementById('save-indicator');
+    if(ind){ind.style.opacity='1';setTimeout(()=>ind.style.opacity='0',1500);}
+  }catch(e){console.warn('Sauvegarde impossible',e);}
+}
+
+function loadProgress(){
+  try{
+    const raw=localStorage.getItem(STORAGE_KEY_R);
+    if(!raw)return;
+    const data=JSON.parse(raw);
+    if(data.score)score=data.score;
+    if(data.figStats)Object.assign(figStats,data.figStats);
+    if(data.figWeights)Object.assign(figWeights,data.figWeights);
+  }catch(e){console.warn('Chargement impossible',e);}
+}
 
 // ═══════════════════════════════════════════════════════════
 // TOGGLES
@@ -821,11 +1165,15 @@ document.getElementById('tempo').oninput=e=>document.getElementById('tv').textCo
 document.getElementById('bars').oninput=e=>document.getElementById('bv').textContent=e.target.value;
 document.addEventListener('keydown',e=>{
   if(['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))return;
-  if(e.key===' '){e.preventDefault();playRhythm();}else if(e.key==='Enter'){e.preventDefault();checkAnswer();}
+  if(e.key===' '){
+    e.preventDefault();
+    if(tapState.active) registerTap();
+    else playRhythm();
+  } else if(e.key==='Enter'){e.preventDefault();checkAnswer();}
 });
 document.addEventListener('change',e=>{if(e.target.id?.startsWith('tog-'))buildKbd();});
 
-buildToggles();buildKbd();updateScore();
+buildToggles();buildKbd();loadProgress();updateScore();
 
 // Toggle métronome — animation visuelle
 const metroCheck=document.getElementById('metro-on');
@@ -844,6 +1192,26 @@ function updateMetroToggle(){
 }
 metroCheck.addEventListener('change', updateMetroToggle);
 updateMetroToggle();
+
+// Toggle comptage
+const countCheck=document.getElementById('count-on');
+const countSlider=document.getElementById('count-slider');
+const countKnob=document.getElementById('count-knob');
+function updateCountToggle(){
+  if(countCheck.checked){
+    countSlider.style.background='var(--accent)';
+    countKnob.style.transform='translateX(16px)';
+    countKnob.style.background='var(--bg)';
+    document.getElementById('count-display').style.display='block';
+  } else {
+    countSlider.style.background='var(--border)';
+    countKnob.style.transform='translateX(0)';
+    countKnob.style.background='var(--muted)';
+    document.getElementById('count-display').style.display='none';
+  }
+}
+countCheck.addEventListener('change', updateCountToggle);
+updateCountToggle();
 
 // ═══════════════════════════════════════════════════════════
 // BATTUE DE MESURE — Diagramme SVG animé

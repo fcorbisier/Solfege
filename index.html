@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Atelier de Solfège</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎵</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0e0e12;--surface:#16161e;--surface2:#1e1e2a;--border:#2a2a3a;
+  --accent:#c8a97e;--accent2:#7eb8c8;--text:#e8e4d9;--muted:#6b6880;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;
+  min-height:100vh;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;padding:2rem 1rem;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 20% 10%,rgba(200,169,126,.07) 0%,transparent 60%),
+    radial-gradient(ellipse 60% 50% at 80% 90%,rgba(126,184,200,.07) 0%,transparent 60%),
+    radial-gradient(ellipse 40% 40% at 50% 50%,rgba(200,169,126,.03) 0%,transparent 70%);
+}
+
+/* Header */
+.header{text-align:center;margin-bottom:3.5rem}
+.logo{font-size:3rem;margin-bottom:1rem;animation:float 3s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+h1{
+  font-family:'Playfair Display',serif;font-size:2.8rem;font-weight:400;
+  color:var(--accent);letter-spacing:.02em;line-height:1.1
+}
+h1 em{font-style:italic;color:var(--text);opacity:.7}
+.subtitle{
+  color:var(--muted);font-size:.78rem;letter-spacing:.18em;
+  text-transform:uppercase;margin-top:.6rem
+}
+
+/* Cards grid */
+.cards{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+  gap:1.5rem;width:100%;max-width:760px
+}
+
+.card{
+  background:var(--surface);border:1px solid var(--border);border-radius:16px;
+  padding:2rem 1.8rem;text-decoration:none;color:var(--text);
+  transition:all .2s;position:relative;overflow:hidden;
+  display:flex;flex-direction:column;gap:1rem
+}
+.card::before{
+  content:'';position:absolute;inset:0;opacity:0;
+  transition:opacity .2s;border-radius:16px
+}
+.card:hover{transform:translateY(-4px);border-color:var(--card-color, var(--accent));
+  box-shadow:0 8px 32px rgba(0,0,0,.4)}
+.card:hover::before{opacity:1}
+.card:active{transform:translateY(-2px)}
+
+.card-notes{--card-color:var(--accent)}
+.card-notes::before{background:radial-gradient(ellipse at top left,rgba(200,169,126,.06),transparent 60%)}
+
+.card-rythme{--card-color:var(--accent2)}
+.card-rythme::before{background:radial-gradient(ellipse at top left,rgba(126,184,200,.06),transparent 60%)}
+
+.card-icon{font-size:2.4rem;line-height:1}
+.card-title{font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:400;
+  color:var(--card-color, var(--accent))}
+.card-desc{font-size:.75rem;color:var(--muted);line-height:1.7}
+.card-features{display:flex;flex-direction:column;gap:.3rem;margin-top:.25rem}
+.card-feature{font-size:.68rem;color:var(--muted);display:flex;align-items:center;gap:.5rem}
+.card-feature::before{content:'';width:4px;height:4px;border-radius:50%;
+  background:var(--card-color, var(--accent));flex-shrink:0}
+.card-cta{
+  margin-top:auto;padding:.7rem 1.2rem;border-radius:8px;
+  background:transparent;border:1px solid var(--card-color, var(--accent));
+  color:var(--card-color, var(--accent));font-family:'DM Mono',monospace;
+  font-size:.78rem;letter-spacing:.06em;text-align:center;
+  transition:all .15s;cursor:pointer
+}
+.card:hover .card-cta{
+  background:var(--card-color, var(--accent));
+  color:var(--bg);font-weight:500
+}
+
+/* Séparateur */
+.divider{
+  width:100%;max-width:760px;border:none;border-top:1px solid var(--border);
+  margin:2.5rem 0
+}
+
+/* Stats rapides */
+.stats-row{
+  display:flex;gap:2rem;justify-content:center;flex-wrap:wrap;
+  font-size:.7rem;color:var(--muted)
+}
+.stat{display:flex;flex-direction:column;align-items:center;gap:.2rem}
+.stat-val{font-family:'Playfair Display',serif;font-size:1.4rem;color:var(--text)}
+.stat-lbl{letter-spacing:.1em;text-transform:uppercase;font-size:.6rem}
+
+/* Footer */
+footer{
+  margin-top:3rem;font-size:.62rem;color:var(--muted);
+  letter-spacing:.1em;text-align:center;line-height:2
+}
+
+@media(max-width:500px){
+  h1{font-size:2rem}
+  .cards{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">🎵</div>
+  <h1>Atelier de <em>Solfège</em></h1>
+  <p class="subtitle">Entraînement à l'oreille · Piano Steinway</p>
+</div>
+
+<div class="cards">
+
+  <!-- Dictée de notes -->
+  <a href="dictee-solfege-steinway.html" class="card card-notes">
+    <div class="card-icon">🎹</div>
+    <div class="card-title">Dictée de Notes</div>
+    <div class="card-desc">Identifiez les notes jouées au piano Steinway. Du Do au Si, en séquence ou en accord.</div>
+    <div class="card-features">
+      <div class="card-feature">Séquences aléatoires & personnalisées</div>
+      <div class="card-feature">Intervalles nommés (tierce, quinte…)</div>
+      <div class="card-feature">Accords parfaits majeurs & mineurs</div>
+      <div class="card-feature">Mélodies connues note par note</div>
+      <div class="card-feature">Répétition espacée intelligente</div>
+    </div>
+    <div class="card-cta">Commencer →</div>
+  </a>
+
+  <!-- Dictée de rythme -->
+  <a href="dictee-rythme.html" class="card card-rythme">
+    <div class="card-icon">🥁</div>
+    <div class="card-title">Dictée de Rythme</div>
+    <div class="card-desc">Identifiez les figures rythmiques et battez la mesure en même temps.</div>
+    <div class="card-features">
+      <div class="card-feature">Noires, croches, doubles croches & plus</div>
+      <div class="card-feature">Syncopes, contretemps, triolets</div>
+      <div class="card-feature">Métronome & comptage 1 et 2 et…</div>
+      <div class="card-feature">Mode frappe libre (barre espace)</div>
+      <div class="card-feature">Battue de mesure animée</div>
+    </div>
+    <div class="card-cta">Commencer →</div>
+  </a>
+
+</div>
+
+<hr class="divider">
+
+<!-- Stats globales depuis localStorage -->
+<div class="stats-row" id="stats-row">
+  <div class="stat"><div class="stat-val" id="stat-notes-ex">—</div><div class="stat-lbl">Exercices notes</div></div>
+  <div class="stat"><div class="stat-val" id="stat-notes-pct">—</div><div class="stat-lbl">Précision notes</div></div>
+  <div class="stat"><div class="stat-val" id="stat-rythme-ex">—</div><div class="stat-lbl">Exercices rythme</div></div>
+  <div class="stat"><div class="stat-val" id="stat-rythme-pct">—</div><div class="stat-lbl">Précision rythme</div></div>
+</div>
+
+<footer>
+  Utilise le piano Steinway via Tone.js · Fonctionne hors ligne après premier chargement<br>
+  Scores sauvegardés localement dans votre navigateur
+</footer>
+
+<script>
+// Charger les stats depuis localStorage
+function loadStats() {
+  try {
+    const notes  = JSON.parse(localStorage.getItem('solfege_progress_v1') || '{}');
+    const rythme = JSON.parse(localStorage.getItem('rythme_progress_v1')  || '{}');
+
+    if (notes.score && notes.score.t > 0) {
+      document.getElementById('stat-notes-ex').textContent  = notes.score.t;
+      document.getElementById('stat-notes-pct').textContent = Math.round(notes.score.ok / notes.score.t * 100) + '%';
+    }
+    if (rythme.score && rythme.score.t > 0) {
+      document.getElementById('stat-rythme-ex').textContent  = rythme.score.t;
+      document.getElementById('stat-rythme-pct').textContent = Math.round(rythme.score.ok / rythme.score.t * 100) + '%';
+    }
+  } catch(e) {}
+}
+loadStats();
+</script>
+</body>
+</html>

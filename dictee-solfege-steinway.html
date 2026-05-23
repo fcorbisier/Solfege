@@ -133,7 +133,7 @@
 
 <header>
   <h1>Dictée de Solfège</h1>
-  <p>Steinway Grand Piano · Entraînement à l'oreille · <span style="color:var(--border)">v1.5</span></p>
+  <p>Steinway Grand Piano · Entraînement à l'oreille · <span style="color:var(--border)">v2.0</span></p>
 </header>
 
 <div class="layout">
@@ -147,7 +147,11 @@
         <select id="mode">
           <option value="random">Séquence aléatoire</option>
           <option value="custom">Séquence personnalisée</option>
-          <option value="interval">Intervalle (2 notes)</option>
+          <option value="interval">Intervalle (2 notes séparées)</option>
+          <option value="interval-named">Intervalle nommé</option>
+          <option value="interval-sim">Intervalle simultané</option>
+          <option value="chord">Accord parfait</option>
+          <option value="melody">Mélodie connue</option>
         </select>
       </div>
       <div class="sg"><label>Tempo (BPM)</label>
@@ -186,6 +190,11 @@
       </div>
       <div style="font-size:.7rem;color:var(--muted);margin-top:.4rem">do ré(re) mi fa sol la si · espaces</div>
     </div>
+    <div id="melody-section" style="margin-top:1rem;display:none">
+      <div class="panel-title" style="margin-bottom:.75rem">Mélodie</div>
+      <select id="melody-select" style="width:100%"></select>
+      <div id="melody-hint" style="font-size:.68rem;color:var(--muted);margin-top:.4rem;font-style:italic"></div>
+    </div>
   </div>
 
   <!-- Score -->
@@ -198,7 +207,13 @@
       <div><div class="sl">Précision</div><div class="sv" id="sc-p" style="font-size:1.3rem">—</div></div>
     </div>
     <div class="dots" id="dots"></div>
+    <!-- Historique des erreurs par note -->
+    <div style="margin-top:.9rem">
+      <div class="panel-title" style="margin-bottom:.6rem">Erreurs par note</div>
+      <div id="note-stats"><span style="color:var(--muted);font-size:.7rem;font-style:italic">Aucune donnée encore</span></div>
+    </div>
     <button class="btn btn-sm" style="margin-top:.8rem;color:var(--muted)" onclick="resetScore()">Réinitialiser</button>
+    <div id="save-indicator" style="font-size:.6rem;color:var(--muted);margin-top:.4rem;opacity:0;transition:opacity .5s">💾 Sauvegardé</div>
   </div>
 
 </div><!-- /col-left -->
@@ -213,6 +228,7 @@
       </div>
     </div>
     <div class="seq-display" id="seq-display"><span class="hint">Générez une séquence pour commencer</span></div>
+    <div id="melody-progress" style="font-size:.68rem;color:var(--accent);margin-top:.4rem;min-height:1rem"></div>
     <div class="controls">
       <button class="btn btn-p" id="btn-generate" onclick="generateSequence()">⟳ Générer</button>
       <button class="btn" id="btn-play" onclick="playSeq()" disabled>▶ Écouter</button>
@@ -256,6 +272,18 @@ const NOTE_MAP = {
   la:  {3:'A3', 4:'A4', 5:'A5'},
   si:  {3:'B3', 4:'B4', 5:'B5'},
 };
+
+// Accords parfaits majeurs et mineurs sur les degrés naturels
+// Format: {root, third, fifth, name, quality}
+const CHORDS = [
+  {root:'do',  third:'mi',  fifth:'sol', name:'Do majeur',  quality:'maj'},
+  {root:'ré',  third:'fa',  fifth:'la',  name:'Ré mineur',  quality:'min'},
+  {root:'mi',  third:'sol', fifth:'si',  name:'Mi mineur',  quality:'min'},
+  {root:'fa',  third:'la',  fifth:'do',  name:'Fa majeur',  quality:'maj'},
+  {root:'sol', third:'si',  fifth:'ré',  name:'Sol majeur', quality:'maj'},
+  {root:'la',  third:'do',  fifth:'mi',  name:'La mineur',  quality:'min'},
+  {root:'si',  third:'ré',  fifth:'fa',  name:'Si diminué', quality:'dim'},
+];
 
 // ── Salamander Grand Piano (Tone.js Sampler) ───────────────────────────────────
 // Samples officiels Tone.js — Salamander Grand Piano (Alexander Holm, CC-BY 3.0)
@@ -312,6 +340,26 @@ function playPianoNote(note, oct, duration) {
 // ── State ──────────────────────────────────────────────────────────────────────
 let octave = 4, seq = [], ans = [], revealed = false, playing = false;
 let score  = {t:0, ok:0, ko:0, h:[]};
+let noteStats = {};
+NOTES.forEach(n => noteStats[n] = {seen:0, missed:0});
+// Mode accord : stocke l'accord courant
+let currentChord = null;  // {root, third, fifth, name, quality}
+let chordAns = new Set(); // notes cochées par l'utilisateur
+
+function isChordMode() { return ['chord','interval-sim'].includes(document.getElementById('mode').value); }
+
+function playPianoNote(note, oct, duration) {
+  if (!sampler || !sampler.loaded) return;
+  const midiNote = NOTE_MAP[note]?.[oct];
+  if (!midiNote) return;
+  Tone.start();
+  sampler.triggerAttackRelease(midiNote, duration);
+}
+
+function playPianoChord(notes, oct, duration) {
+  // Joue plusieurs notes simultanément
+  notes.forEach(note => playPianoNote(note, oct, duration));
+}
 
 // ── Playback ───────────────────────────────────────────────────────────────────
 function playSeq(s) {
@@ -326,31 +374,182 @@ function playSeq(s) {
   const bpm  = +document.getElementById('tempo').value;
   const beat = 60 / bpm;
   const noteEls = document.querySelectorAll('.sn');
+  const mode = document.getElementById('mode').value;
 
-  s.forEach((note, i) => {
+  if (mode === 'chord' || mode === 'interval-sim') {
+    // Arpège rapide puis accord simultané
+    s.forEach((note, i) => {
+      setTimeout(() => {
+        noteEls[i]?.classList.add('active');
+        playPianoNote(note, octave, '4n');
+      }, i * 150);
+    });
     setTimeout(() => {
       noteEls.forEach(el => el.classList.remove('active'));
-      noteEls[i]?.classList.add('active');
-      playPianoNote(note, octave, beat * 0.85 + 's');
-    }, i * beat * 1000);
-  });
-
-  const totalMs = s.length * beat * 1000 + 800;
-  setTimeout(() => {
-    document.querySelectorAll('.sn').forEach(el => el.classList.remove('active'));
-    document.getElementById('play-ind').classList.remove('on');
-    document.getElementById('btn-play').disabled = false;
-    playing = false;
-  }, totalMs);
+      noteEls.forEach(el => el.classList.add('active'));
+      playPianoChord(s, octave, '2n');
+    }, s.length * 150 + 250);
+    setTimeout(() => {
+      noteEls.forEach(el => el.classList.remove('active'));
+      document.getElementById('play-ind').classList.remove('on');
+      document.getElementById('btn-play').disabled = false;
+      playing = false;
+    }, s.length * 150 + 250 + 1500);
+  } else {
+    s.forEach((note, i) => {
+      setTimeout(() => {
+        noteEls.forEach(el => el.classList.remove('active'));
+        noteEls[i]?.classList.add('active');
+        playPianoNote(note, octave, beat * 0.85 + 's');
+      }, i * beat * 1000);
+    });
+    const totalMs = s.length * beat * 1000 + 800;
+    setTimeout(() => {
+      document.querySelectorAll('.sn').forEach(el => el.classList.remove('active'));
+      document.getElementById('play-ind').classList.remove('on');
+      document.getElementById('btn-play').disabled = false;
+      playing = false;
+    }, totalMs);
+  }
 }
 
 function playRef() {
   playPianoNote('do', octave, '2n');
 }
 
+// ── Catalogue de mélodies ─────────────────────────────────────────────────────
+const MELODIES = [
+  { name: 'Frère Jacques',          notes: ['do','ré','mi','do','do','ré','mi','do','mi','fa','sol','mi','fa','sol'] },
+  { name: 'Au clair de la lune',    notes: ['do','do','do','ré','mi','ré','do','mi','ré','ré','do'] },
+  { name: 'Ah vous dirai-je maman', notes: ['do','do','sol','sol','la','la','sol','fa','fa','mi','mi','ré','ré','do'] },
+  { name: 'Jingle Bells (début)',   notes: ['mi','mi','mi','mi','mi','mi','mi','sol','do','ré','mi'] },
+  { name: 'Ode à la joie',          notes: ['mi','mi','fa','sol','sol','fa','mi','ré','do','do','ré','mi','mi','ré','ré'] },
+  { name: 'Happy Birthday',         notes: ['do','do','ré','do','fa','mi','do','do','ré','do','sol','fa'] },
+  { name: 'Sur le pont d\'Avignon', notes: ['sol','la','sol','fa','mi','fa','sol','do','sol','la','sol','fa','mi'] },
+  { name: 'Savez-vous planter',     notes: ['do','mi','sol','mi','do','mi','sol','mi','do','ré','mi','fa','mi','ré','do'] },
+];
+
+let currentMelody = null;
+let melodyStep    = 0;
+
+function buildMelodySelector() {
+  const sel = document.getElementById('melody-select');
+  if (!sel) return;
+  sel.innerHTML = MELODIES.map((m,i) => `<option value="${i}">${m.name} (${m.notes.length} notes)</option>`).join('');
+  sel.onchange = () => {
+    const m = MELODIES[+sel.value];
+    const hint = document.getElementById('melody-hint');
+    if (hint) hint.textContent = m.notes.slice(0,6).map(cap).join(' — ') + '…';
+  };
+  sel.dispatchEvent(new Event('change'));
+}
+
+function startMelody() {
+  const sel = document.getElementById('melody-select');
+  currentMelody = MELODIES[+sel.value];
+  melodyStep = 0;
+  nextMelodyNote();
+}
+
+function nextMelodyNote() {
+  if (!currentMelody) return;
+  if (melodyStep >= currentMelody.notes.length) {
+    showResult(true, `✓ Bravo ! "${currentMelody.name}" terminée !`);
+    score.ok++; score.t++; score.h.push('ok');
+    updateScore(); saveProgress();
+    currentMelody = null;
+    return;
+  }
+  seq = [currentMelody.notes[melodyStep]];
+  revealed = false; renderSeq(true); resetAns();
+  document.getElementById('btn-play').disabled   = false;
+  document.getElementById('btn-reveal').disabled = false;
+  document.getElementById('ans-panel').style.display = 'block';
+  // Progression dans le titre
+  const ptEl = document.getElementById('melody-progress');
+  if (ptEl) ptEl.textContent = `${currentMelody.name} · ${melodyStep+1}/${currentMelody.notes.length}`;
+  setTimeout(playSeq, 300);
+}
+
+function checkMelodyAnswer() {
+  if (!currentMelody || !seq.length) return;
+  const expected = currentMelody.notes[melodyStep];
+  if (ans.length !== 1) { showResult(false, 'Entrez une seule note.'); return; }
+  const correct = ans[0] === expected;
+  if (correct) {
+    renderAns([true]); revealAll();
+    noteStats[expected].seen++;
+    updateWeight(expected, true);
+    showResult(true, `✓ ${cap(expected)} — note ${melodyStep+1}/${currentMelody.notes.length}`);
+    melodyStep++;
+    setTimeout(nextMelodyNote, 900);
+  } else {
+    // Ne pas révéler — juste indiquer l'erreur et rejouer la même note
+    renderAns([false]);
+    noteStats[expected].seen++;
+    noteStats[expected].missed++;
+    updateWeight(expected, false);
+    showResult(false, `✗ Pas tout à fait — réessayez`);
+    setTimeout(() => {
+      resetAns();
+      document.getElementById('result').className = 'result';
+      playSeq(); // rejoue uniquement la note courante (seq = [note courante])
+    }, 1000);
+  }
+}
+
+// ── Intervalles nommés ────────────────────────────────────────────────────────
+// Distance en demi-tons entre deux notes (dans l'octave)
+const NOTE_SEMITONES = {do:0, ré:2, mi:4, fa:5, sol:7, la:9, si:11};
+
+const INTERVAL_NAMES = {
+  0:  'Unisson',
+  1:  'Seconde mineure',
+  2:  'Seconde majeure',
+  3:  'Tierce mineure',
+  4:  'Tierce majeure',
+  5:  'Quarte juste',
+  6:  'Triton',
+  7:  'Quinte juste',
+  8:  'Sixte mineure',
+  9:  'Sixte majeure',
+  10: 'Septième mineure',
+  11: 'Septième majeure',
+  12: 'Octave',
+};
+
+function intervalName(noteA, noteB) {
+  const a = NOTE_SEMITONES[noteA] ?? 0;
+  const b = NOTE_SEMITONES[noteB] ?? 0;
+  const dist = Math.abs(b - a);
+  const semitones = dist > 6 ? 12 - dist : dist; // prendre le plus petit
+  return INTERVAL_NAMES[dist] || INTERVAL_NAMES[semitones] || `${dist} demi-tons`;
+}
+
 // ── Generate ───────────────────────────────────────────────────────────────────
-function getActive() {
-  return NOTES.filter(n => document.getElementById('n-' + (n==='ré'?'re':n))?.checked);
+// ── Répétition espacée ────────────────────────────────────────────────────────
+// Poids par note : commence à 1, monte si raté, descend si réussi
+// Plage : 0.2 (très bien maîtrisé) → 4.0 (souvent raté)
+let noteWeights = {};
+NOTES.forEach(n => noteWeights[n] = 1.0);
+
+function updateWeight(note, correct) {
+  if (correct) {
+    noteWeights[note] = Math.max(0.2, noteWeights[note] * 0.65);
+  } else {
+    noteWeights[note] = Math.min(4.0, noteWeights[note] * 1.8);
+  }
+}
+
+function weightedRandom(pool) {
+  const weights = pool.map(n => noteWeights[n] || 1);
+  const total = weights.reduce((a,b) => a+b, 0);
+  let r = Math.random() * total;
+  for (let i = 0; i < pool.length; i++) {
+    r -= weights[i];
+    if (r <= 0) return pool[i];
+  }
+  return pool[pool.length - 1];
 }
 
 function generateSequence() {
@@ -359,22 +558,43 @@ function generateSequence() {
   const active = getActive();
   if (!active.length) { alert('Sélectionnez au moins une note !'); return; }
 
+  currentChord = null;
+
   if (mode === 'random') {
-    seq = Array.from({length: len}, () => active[Math.floor(Math.random() * active.length)]);
-  } else if (mode === 'interval') {
+    seq = Array.from({length: len}, () => weightedRandom(active));
+  } else if (mode === 'interval' || mode === 'interval-named') {
+    const a = weightedRandom(active);
+    let b = a;
+    if (active.length > 1) while (b === a) b = weightedRandom(active);
+    seq = [a, b];
+  } else if (mode === 'interval-sim') {
+    // Deux notes jouées simultanément
     const a = active[Math.floor(Math.random() * active.length)];
     let b = a;
     if (active.length > 1) while (b === a) b = active[Math.floor(Math.random() * active.length)];
+    currentChord = {root:a, third:b, fifth:null, name:`${cap(a)} + ${cap(b)}`, quality:'interval'};
     seq = [a, b];
+  } else if (mode === 'chord') {
+    // Accord parfait — filtrer ceux dont les 3 notes sont actives
+    const available = CHORDS.filter(c =>
+      active.includes(c.root) && active.includes(c.third) && active.includes(c.fifth)
+    );
+    if (!available.length) { alert('Activez au moins 5 notes pour les accords parfaits.'); return; }
+    currentChord = available[Math.floor(Math.random() * available.length)];
+    seq = [currentChord.root, currentChord.third, currentChord.fifth];
   }
 
-  revealed = false;
-  renderSeq(true);
+  } else if (mode === 'melody') {
+    startMelody(); return;
+  }
   resetAns();
   document.getElementById('ans-panel').style.display = 'block';
   document.getElementById('btn-play').disabled = false;
   document.getElementById('btn-reveal').disabled = false;
   document.getElementById('btn-ref').disabled = false;
+
+  // Adapter l'interface réponse selon le mode
+  updateAnswerUI();
   setTimeout(playSeq, 300);
 }
 
@@ -412,6 +632,54 @@ function renderSeq(hide) {
 function revealAll() { revealed = true; renderSeq(false); }
 function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
+// ── Interface réponse adaptative ───────────────────────────────────────────────
+function updateAnswerUI() {
+  const mode = document.getElementById('mode').value;
+  const isChord = mode === 'chord' || mode === 'interval-sim';
+  const kbdEl = document.getElementById('kbd');
+
+  if (isChord) {
+    // Mode accord : cases à cocher pour chaque note
+    kbdEl.innerHTML = '';
+    NOTES.forEach(note => {
+      const btn = document.createElement('button');
+      btn.className = 'kb chord-toggle';
+      btn.id = 'ct-' + note;
+      btn.textContent = cap(note);
+      btn.style.color = COLORS[note];
+      btn.style.borderColor = COLORS[note] + '55';
+      btn.onclick = () => toggleChordNote(note);
+      kbdEl.appendChild(btn);
+    });
+    // Afficher le nom de l'accord si accord parfait
+    const hintEl = document.getElementById('ans-notes');
+    hintEl.innerHTML = `<span class="hint" style="font-size:.75rem">Cochez les notes que vous entendez (sans ordre)</span>`;
+  } else {
+    buildKbd();
+  }
+}
+
+function toggleChordNote(note) {
+  const btn = document.getElementById('ct-' + note);
+  if (chordAns.has(note)) {
+    chordAns.delete(note);
+    btn.style.background = 'var(--surface2)';
+    btn.style.boxShadow = 'none';
+  } else {
+    chordAns.add(note);
+    btn.style.background = 'rgba(200,169,126,.15)';
+    btn.style.borderColor = COLORS[note];
+    btn.style.boxShadow = `0 0 8px ${COLORS[note]}66`;
+  }
+  playPianoNote(note, octave, '4n');
+  // Afficher les notes cochées
+  const el = document.getElementById('ans-notes');
+  const checked = [...chordAns];
+  el.innerHTML = checked.length
+    ? checked.map(n => `<span class="an" style="color:${COLORS[n]};border:1px solid ${COLORS[n]}44;padding:.3rem .6rem;border-radius:5px">${cap(n)}</span>`).join('')
+    : `<span class="hint" style="font-size:.75rem">Cochez les notes que vous entendez</span>`;
+}
+
 // ── Keyboard ───────────────────────────────────────────────────────────────────
 function buildKbd() {
   const el = document.getElementById('kbd');
@@ -447,21 +715,71 @@ function renderAns(results) {
   });
 }
 
-function clearAns() { ans = []; renderAns(null); document.getElementById('result').className = 'result'; }
-function undoAns()  { ans.pop(); renderAns(null); }
-function resetAns() { ans = []; renderAns(null); document.getElementById('result').className = 'result'; }
+function clearAns() {
+  ans = []; chordAns = new Set();
+  if (isChordMode()) updateAnswerUI();
+  else renderAns(null);
+  document.getElementById('result').className = 'result';
+}
+function undoAns()  { if (!isChordMode()) { ans.pop(); renderAns(null); } }
+function resetAns() {
+  ans = []; chordAns = new Set();
+  if (!isChordMode()) renderAns(null);
+  document.getElementById('result').className = 'result';
+}
 
 // ── Check ──────────────────────────────────────────────────────────────────────
 function checkAnswer() {
   if (!seq.length) return;
-  if (ans.length !== seq.length) { showResult(false, `Longueur incorrecte : ${ans.length} note(s) pour ${seq.length} attendue(s).`); return; }
-  const res   = seq.map((n, i) => n === ans[i]);
-  const allOk = res.every(Boolean);
-  renderAns(res); revealAll();
-  score.t++; allOk ? (score.ok++, score.h.push('ok')) : (score.ko++, score.h.push('ko'));
-  updateScore();
-  allOk ? showResult(true, '✓ Parfait ! Toutes les notes sont correctes.')
-        : showResult(false, `✗ ${res.filter(r=>!r).length} erreur(s). Séquence : ${seq.map(cap).join(' — ')}`);
+  const mode = document.getElementById('mode').value;
+  if (mode === 'melody') { checkMelodyAnswer(); return; }
+  const isChord = mode === 'chord' || mode === 'interval-sim';
+
+  if (isChord) {
+    // Vérification accord : l'ordre n'importe pas
+    const expected = new Set(seq);
+    const correct = [...expected].every(n => chordAns.has(n)) && chordAns.size === expected.size;
+    revealAll();
+    // Colorier les boutons
+    NOTES.forEach(note => {
+      const btn = document.getElementById('ct-' + note);
+      if (!btn) return;
+      if (expected.has(note) && chordAns.has(note)) {
+        btn.style.background = 'rgba(126,200,126,.2)'; btn.style.borderColor = 'var(--success)';
+      } else if (!expected.has(note) && chordAns.has(note)) {
+        btn.style.background = 'rgba(200,126,126,.2)'; btn.style.borderColor = 'var(--error)';
+      } else if (expected.has(note) && !chordAns.has(note)) {
+        btn.style.background = 'rgba(200,126,126,.1)'; btn.style.borderColor = 'var(--error)'; btn.style.opacity = '.6';
+      }
+    });
+    // Tracking + poids répétition espacée
+    seq.forEach(n => {
+      noteStats[n].seen++;
+      if (!chordAns.has(n)) noteStats[n].missed++;
+      updateWeight(n, chordAns.has(n));
+    });
+    score.t++; correct ? (score.ok++, score.h.push('ok')) : (score.ko++, score.h.push('ko'));
+    updateScore(); saveProgress();
+    const chordName = currentChord?.name || seq.map(cap).join(' + ');
+    correct
+      ? showResult(true,  `✓ Parfait ! ${chordName}`)
+      : showResult(false, `✗ C'était : ${chordName} (${seq.map(cap).join(' — ')})`);
+  } else {
+    if (ans.length !== seq.length) { showResult(false, `Longueur incorrecte : ${ans.length} note(s) pour ${seq.length} attendue(s).`); return; }
+    const res   = seq.map((n, i) => n === ans[i]);
+    const allOk = res.every(Boolean);
+    renderAns(res); revealAll();
+    seq.forEach((n, i) => {
+      noteStats[n].seen++; if (!res[i]) noteStats[n].missed++;
+      updateWeight(n, res[i]);
+    });
+    score.t++; allOk ? (score.ok++, score.h.push('ok')) : (score.ko++, score.h.push('ko'));
+    updateScore(); saveProgress();
+    allOk ? showResult(true,  mode === 'interval-named'
+               ? `✓ Parfait ! ${seq.map(cap).join(' — ')} → ${intervalName(seq[0], seq[1])}`
+               : '✓ Parfait ! Toutes les notes sont correctes.')
+          : showResult(false, `✗ ${res.filter(r=>!r).length} erreur(s). Séquence : ${seq.map(cap).join(' — ')}${mode==='interval-named'?' → '+intervalName(seq[0],seq[1]):''}`);
+  }
 }
 
 function showResult(ok, msg) {
@@ -479,14 +797,80 @@ function updateScore() {
   const el = document.getElementById('dots');
   el.innerHTML = '';
   score.h.forEach(h => { const d = document.createElement('div'); d.className='dot '+h; el.appendChild(d); });
+  renderNoteStats();
 }
-function resetScore() { score = {t:0,ok:0,ko:0,h:[]}; updateScore(); }
+
+function renderNoteStats() {
+  const el = document.getElementById('note-stats');
+  if (!el) return;
+  const tracked = NOTES.filter(n => noteStats[n].seen > 0);
+  if (!tracked.length) { el.innerHTML = '<span style="color:var(--muted);font-size:.7rem;font-style:italic">Aucune donnée encore</span>'; return; }
+  el.innerHTML = '';
+  const sorted = [...tracked].sort((a,b) => {
+    const ra = noteStats[a].missed / noteStats[a].seen;
+    const rb = noteStats[b].missed / noteStats[b].seen;
+    return rb - ra;
+  });
+  sorted.forEach(n => {
+    const {seen, missed} = noteStats[n];
+    const rate = Math.round(missed / seen * 100);
+    const w = noteWeights[n];
+    // Indicateur de fréquence de répétition
+    const freqDots = w >= 3 ? '●●●' : w >= 1.5 ? '●●○' : w >= 0.5 ? '●○○' : '○○○';
+    const freqColor = w >= 3 ? 'var(--error)' : w >= 1.5 ? 'var(--accent)' : 'var(--success)';
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:.5rem;margin-bottom:.3rem';
+    const col = COLORS[n];
+    row.innerHTML = `
+      <span style="width:28px;font-size:.78rem;font-weight:500;color:${col}">${cap(n)}</span>
+      <div style="flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden">
+        <div style="width:${rate}%;height:100%;background:${rate>60?'var(--error)':rate>30?'var(--accent)':'var(--success)'};border-radius:3px;transition:width .4s"></div>
+      </div>
+      <span style="font-size:.6rem;color:var(--muted);width:28px;text-align:right">${missed}/${seen}</span>
+      <span style="font-size:.65rem;color:${freqColor};width:24px;letter-spacing:-.1em" title="Fréquence de répétition">${freqDots}</span>`;
+    el.appendChild(row);
+  });
+}
+
+function resetScore() {
+  if (!confirm('Réinitialiser tout le score et l\'historique ?')) return;
+  score = {t:0,ok:0,ko:0,h:[]};
+  NOTES.forEach(n => { noteStats[n] = {seen:0, missed:0}; noteWeights[n] = 1.0; });
+  saveProgress();
+  updateScore();
+}
+
+// ── Persistance localStorage ───────────────────────────────────────────────────
+const STORAGE_KEY = 'solfege_progress_v1';
+
+function saveProgress() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ score, noteStats, noteWeights }));
+    const ind = document.getElementById('save-indicator');
+    if (ind) { ind.style.opacity='1'; setTimeout(()=>ind.style.opacity='0', 1500); }
+  } catch(e) { console.warn('Sauvegarde impossible', e); }
+}
+
+function loadProgress() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    if (data.score)       score       = data.score;
+    if (data.noteStats)   Object.assign(noteStats,   data.noteStats);
+    if (data.noteWeights) Object.assign(noteWeights, data.noteWeights);
+  } catch(e) { console.warn('Chargement impossible', e); }
+}
 
 // ── Bindings ───────────────────────────────────────────────────────────────────
 document.getElementById('tempo').oninput  = e => document.getElementById('tv').textContent = e.target.value;
 document.getElementById('length').oninput = e => document.getElementById('lv').textContent = e.target.value;
-document.getElementById('mode').onchange  = e =>
-  document.getElementById('custom-section').style.display = e.target.value === 'custom' ? 'block' : 'none';
+document.getElementById('mode').onchange = e => {
+  const mode = e.target.value;
+  document.getElementById('custom-section').style.display  = mode === 'custom'  ? 'block' : 'none';
+  document.getElementById('melody-section').style.display  = mode === 'melody'  ? 'block' : 'none';
+  if (seq.length) updateAnswerUI();
+};
 
 document.querySelectorAll('.ob').forEach(b => b.addEventListener('click', () => {
   document.querySelectorAll('.ob').forEach(x => x.classList.remove('sel'));
@@ -505,6 +889,8 @@ document.addEventListener('keydown', e => {
 
 // ── Init ───────────────────────────────────────────────────────────────────────
 buildKbd();
+loadProgress();
+buildMelodySelector();
 updateScore();
 
 // Chrome exige un geste utilisateur avant de démarrer l'AudioContext
