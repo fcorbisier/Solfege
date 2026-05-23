@@ -152,7 +152,7 @@ input[type=range]{padding:.2rem 0;accent-color:var(--accent)}
 </div>
 <header>
   <h1>Dictée de Rythme</h1>
-  <p>Steinway Grand Piano · Entraînement à l'oreille rythmique · <span style="color:var(--border)">v3.2</span></p>
+  <p>Steinway Grand Piano · Entraînement à l'oreille rythmique · <span style="color:var(--border)">v3.3</span></p>
 </header>
 <div class="layout">
 
@@ -260,11 +260,6 @@ input[type=range]{padding:.2rem 0;accent-color:var(--accent)}
         </label>
         <span style="font-size:.65rem;color:var(--muted);letter-spacing:.05em">Comptage (1 et 2 et…)</span>
       </div>
-    </div>
-
-    <!-- Affichage comptage -->
-    <div id="count-display" style="display:none;margin-top:.6rem;padding:.5rem .75rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-size:1.1rem;font-family:'Playfair Display',serif;color:var(--accent);letter-spacing:.1em;text-align:center;min-height:36px"></div>
-
       <!-- Battue de mesure (option) -->
       <div style="display:flex;align-items:center;gap:.6rem">
         <label style="position:relative;display:inline-block;width:36px;height:20px;cursor:pointer;flex-shrink:0">
@@ -272,20 +267,12 @@ input[type=range]{padding:.2rem 0;accent-color:var(--accent)}
           <span id="beat-slider" style="position:absolute;inset:0;background:var(--border);border-radius:20px;transition:.2s;"></span>
           <span id="beat-knob" style="position:absolute;height:14px;width:14px;left:3px;bottom:3px;background:var(--muted);border-radius:50%;transition:.2s;"></span>
         </label>
-        <span style="font-size:.65rem;color:var(--muted);letter-spacing:.05em">Battue de mesure animée</span>
+        <span style="font-size:.65rem;color:var(--muted);letter-spacing:.05em">Battue de mesure</span>
       </div>
     </div>
 
     <!-- Affichage comptage -->
     <div id="count-display" style="display:none;margin-top:.6rem;padding:.5rem .75rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-size:1.1rem;font-family:'Playfair Display',serif;color:var(--accent);letter-spacing:.1em;text-align:center;min-height:36px"></div>
-
-    <!-- Battue de mesure — schéma flèches -->
-    <div id="beat-panel" style="display:none;margin-top:.75rem;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.75rem">
-      <div style="font-size:.58rem;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;margin-bottom:.6rem">
-        Battre la mesure à <span id="beat-meter-label">4</span> temps
-      </div>
-      <div id="beat-diagram" style="display:flex;justify-content:center"></div>
-    </div>
 
     <div id="demo-panel" style="display:none;margin-top:1rem">
       <div style="font-size:.6rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:.75rem">Pulsation &amp; rythme</div>
@@ -301,6 +288,18 @@ input[type=range]{padding:.2rem 0;accent-color:var(--accent)}
       </div>
       <div style="margin-top:1rem;position:relative;height:6px;background:var(--border);border-radius:3px;overflow:hidden">
         <div id="demo-progress" style="height:100%;width:0%;background:var(--accent2);border-radius:3px;transition:width .05s linear"></div>
+      </div>
+    </div>
+    <!-- Battue de mesure — dans la col droite, sous les boutons -->
+    <div id="beat-panel" style="display:none;margin-top:.75rem">
+      <div style="display:flex;align-items:flex-start;gap:1rem;flex-wrap:wrap">
+        <div>
+          <div style="font-size:.55rem;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;margin-bottom:.4rem">
+            Battre à <span id="beat-meter-label">4</span> temps
+          </div>
+          <div id="beat-diagram"></div>
+        </div>
+        <div style="font-size:.6rem;color:var(--muted);line-height:2;padding-top:1.2rem" id="beat-dirs"></div>
       </div>
     </div>
     <div class="tip">[Espace] Rejouer · [Entrée] Vérifier</div>
@@ -1334,6 +1333,15 @@ function drawBeatDiagram(meter){
   const edges=BEAT_EDGES[meter];
   const W=BEAT_W[meter], H=BEAT_H;
   const col='var(--muted)';
+
+  // Labels directionnels
+  const DIRS = {
+    2: ['① Bas','② Haut'],
+    3: ['① Bas','② Droite','③ Haut'],
+    4: ['① Bas','② Gauche','③ Droite','④ Haut'],
+  };
+  const dirsEl=document.getElementById('beat-dirs');
+  if(dirsEl) dirsEl.innerHTML=DIRS[meter].map(d=>`<div>${d}</div>`).join('');
 
   let svg=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="overflow:visible">`;
 

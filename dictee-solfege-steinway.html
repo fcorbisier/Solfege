@@ -132,7 +132,7 @@
 
 <header>
   <h1>Dictée de Solfège</h1>
-  <p>Steinway Grand Piano · Entraînement à l'oreille · <span style="color:var(--border)">v2.2</span></p>
+  <p>Steinway Grand Piano · Entraînement à l'oreille · <span style="color:var(--border)">v2.3</span></p>
 </header>
 
 <div class="layout">
@@ -549,6 +549,10 @@ function weightedRandom(pool) {
     if (r <= 0) return pool[i];
   }
   return pool[pool.length - 1];
+}
+
+function getActive() {
+  return NOTES.filter(n => document.getElementById('n-' + (n==='ré'?'re':n))?.checked);
 }
 
 function generateSequence() {
