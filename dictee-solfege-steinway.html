@@ -132,7 +132,7 @@
 
 <header>
   <h1>Dictée de Solfège</h1>
-  <p>Steinway Grand Piano · Entraînement à l'oreille · <span style="color:var(--border)">v2.5</span></p>
+  <p>Steinway Grand Piano · Entraînement à l'oreille · <span style="color:var(--border)">v2.6</span></p>
 </header>
 
 <div class="layout">
@@ -230,7 +230,7 @@
     <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.75rem;overflow-x:auto">
       <svg id="staff-svg" width="100%" height="120" viewBox="0 0 600 120" preserveAspectRatio="xMinYMid meet" style="display:block;min-width:300px">
         <defs>
-          <filter id="note-blur"><feGaussianBlur stdDeviation="4"/></filter>
+          <filter id="note-blur"><feGaussianBlur stdDeviation="8"/></filter>
           <filter id="note-glow"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
         </defs>
         <!-- Fond blanc pour la portée -->
@@ -744,7 +744,7 @@ function renderNote(note, oct, x, hidden, active, result) {
 
   if (hidden) {
     // Note cachée : dessinée mais floutée avec filtre SVG
-    svg += `<g filter="url(#note-blur)" opacity=".25">`;
+    svg += `<g filter="url(#note-blur)" opacity=".12">`;
     svg += `<ellipse cx="${x}" cy="${y}" rx="7" ry="5" transform="rotate(-15,${x},${y})" fill="var(--muted)"/>`;
     if (dir === 'up') {
       svg += `<line x1="${x+6}" y1="${y-2}" x2="${x+6}" y2="${y-32}" stroke="var(--muted)" stroke-width="1.5"/>`;

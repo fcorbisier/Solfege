@@ -146,7 +146,7 @@ textarea:focus{border-color:var(--accent)}
 
 <header>
   <h1>Lecteur de Partitions</h1>
-  <p>Piano Steinway · Voix TTS · v1.3</p>
+  <p>Piano Steinway · Voix TTS · v1.4</p>
 </header>
 
 <div class="page">
@@ -361,7 +361,7 @@ function pianoNote(note,oct,beats){
 }
 
 // ═══════════════════════════════════════════
-// TTS
+// TTS — file d'attente pour ne pas perdre de notes
 // ═══════════════════════════════════════════
 let ttsVoice=null;
 function initVoice(){
@@ -369,10 +369,30 @@ function initVoice(){
   ttsVoice=v.find(x=>x.lang.startsWith('fr')&&x.localService)||v.find(x=>x.lang.startsWith('fr'))||null;
 }
 speechSynthesis.onvoiceschanged=initVoice;setTimeout(initVoice,500);
+
+let ttsQueue=[];
+let ttsBusy=false;
+
 function speak(t){
-  if(!t||speechSynthesis.speaking)return;
-  const u=new SpeechSynthesisUtterance(t);u.lang='fr-FR';u.rate=1.1;
-  if(ttsVoice)u.voice=ttsVoice;speechSynthesis.speak(u);
+  if(!t)return;
+  ttsQueue.push(t);
+  if(!ttsBusy)processQueue();
+}
+
+function processQueue(){
+  if(!ttsQueue.length){ttsBusy=false;return;}
+  ttsBusy=true;
+  const text=ttsQueue.shift();
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang='fr-FR';u.rate=1.1;u.pitch=1;
+  if(ttsVoice)u.voice=ttsVoice;
+  u.onend=()=>processQueue();
+  u.onerror=()=>processQueue(); // continuer même en cas d'erreur
+  speechSynthesis.speak(u);
+}
+
+function clearTTS(){
+  ttsQueue=[];ttsBusy=false;speechSynthesis.cancel();
 }
 
 // ═══════════════════════════════════════════
@@ -409,7 +429,10 @@ function playNext(){
   }
   document.getElementById('progress-fill').style.width=((playPos+1)/score.notes.length*100)+'%';
   playPos++;
-  playTimer=setTimeout(playNext,dur.beats*beatSec*1000);
+  // En mode voix seule, délai minimum de 800ms pour que la TTS finisse
+  const durMs=dur.beats*beatSec*1000;
+  const minMs=(playMode==='voice')?Math.max(durMs,800):durMs;
+  playTimer=setTimeout(playNext, minMs);
 }
 function pausePlay(){
   playing=false;clearTimeout(playTimer);
@@ -417,7 +440,7 @@ function pausePlay(){
   document.getElementById('play-ind').classList.remove('on');
 }
 function stopPlay(){
-  playing=false;clearTimeout(playTimer);speechSynthesis.cancel();
+  playing=false;clearTimeout(playTimer);clearTTS();
   document.getElementById('btn-play').textContent='▶ Jouer';
   document.getElementById('btn-stop').disabled=true;
   document.getElementById('play-ind').classList.remove('on');
