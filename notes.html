@@ -209,6 +209,7 @@ body.light .staff-wrap,.light .staff-container{background:#fff!important;border-
     </div>
     <div id="dots" style="display:flex;gap:3px;flex-wrap:wrap;margin-top:.75rem"></div>
     <button class="btn btn-sm" style="margin-top:.75rem;color:var(--muted)" onclick="resetScore()">Réinitialiser</button>
+    <button class="btn btn-sm" style="margin-top:.5rem;color:var(--muted)" onclick="resetConfig()">↺ Config par défaut</button>
   </div>
 
 </div><!-- /col-left -->
@@ -247,8 +248,9 @@ body.light .staff-wrap,.light .staff-container{background:#fff!important;border-
     <div class="pt">Votre réponse</div>
     <div class="ans-notes" id="ans-notes"><span class="hint">Cliquez sur les touches</span></div>
     <div class="kbd" id="kbd"></div>
-    <div style="display:flex;gap:.5rem;margin-top:.75rem">
+    <div style="display:flex;gap:.5rem;margin-top:.75rem;flex-wrap:wrap">
       <button class="btn btn-p btn-sm" onclick="check()">✓ Vérifier</button>
+      <button class="btn btn-sm" onclick="testAns()">▶ Tester</button>
       <button class="btn btn-sm" onclick="undoAns()">↩ Annuler</button>
       <button class="btn btn-sm" onclick="clearAns()">✗ Effacer</button>
     </div>
@@ -558,7 +560,17 @@ function playSeq(){
   }
 }
 
-function playRef(){piano('do',oct,'2n');}
+function testAns(){
+  // Joue les notes saisies par l'utilisateur sans vérifier
+  if(!ans.length||!ready)return;
+  const beat=60/+document.getElementById('tempo').value;
+  const ac=Tone.getContext().rawContext;
+  const t0=ac.currentTime+0.2;
+  ans.forEach((note,i)=>{
+    const midi=NOTE_MAP[note]?.[oct];
+    if(midi) sampler.triggerAttackRelease(midi, beat*0.85, t0+i*beat);
+  });
+}
 
 // ═══ RÉPONSE ═══════════════════════════════
 function buildKbd(){
@@ -694,6 +706,60 @@ setInterval(()=>{
     if(btn)btn.onclick=toggleTheme;
   });
 })();
+
+// ── Sauvegarde/restauration config ────────────────────────────────────
+const CFG_KEY = 'solfege_config_notes';
+const CFG_DEFAULTS = {"mode": "random", "length": "4", "tempo": "72", "n-do": true, "n-re": true, "n-mi": true, "n-fa": true, "n-sol": true, "n-la": true, "n-si": true};
+
+function saveConfig() {
+  const cfg = {};
+  const el_mode = document.getElementById('mode'); if(el_mode) cfg['mode'] = el_mode.value;
+  const el_length = document.getElementById('length'); if(el_length) cfg['length'] = el_length.value;
+  const el_tempo = document.getElementById('tempo'); if(el_tempo) cfg['tempo'] = el_tempo.value;
+  const chk_n_do = document.getElementById('n-do'); if(chk_n_do) cfg['n-do'] = chk_n_do.checked;
+  const chk_n_re = document.getElementById('n-re'); if(chk_n_re) cfg['n-re'] = chk_n_re.checked;
+  const chk_n_mi = document.getElementById('n-mi'); if(chk_n_mi) cfg['n-mi'] = chk_n_mi.checked;
+  const chk_n_fa = document.getElementById('n-fa'); if(chk_n_fa) cfg['n-fa'] = chk_n_fa.checked;
+  const chk_n_sol = document.getElementById('n-sol'); if(chk_n_sol) cfg['n-sol'] = chk_n_sol.checked;
+  const chk_n_la = document.getElementById('n-la'); if(chk_n_la) cfg['n-la'] = chk_n_la.checked;
+  const chk_n_si = document.getElementById('n-si'); if(chk_n_si) cfg['n-si'] = chk_n_si.checked;
+  
+  try { localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); } catch(e) {}
+}
+
+function loadConfig() {
+  let cfg;
+  try { cfg = JSON.parse(localStorage.getItem(CFG_KEY) || 'null'); } catch(e) {}
+  cfg = cfg || CFG_DEFAULTS;
+  if(cfg['mode'] !== undefined) { const el = document.getElementById('mode'); if(el) el.value = cfg['mode']; }
+  if(cfg['length'] !== undefined) { const el = document.getElementById('length'); if(el) el.value = cfg['length']; }
+  if(cfg['tempo'] !== undefined) { const el = document.getElementById('tempo'); if(el) el.value = cfg['tempo']; }
+  if(cfg['n-do'] !== undefined) { const el = document.getElementById('n-do'); if(el) el.checked = cfg['n-do']; }
+  if(cfg['n-re'] !== undefined) { const el = document.getElementById('n-re'); if(el) el.checked = cfg['n-re']; }
+  if(cfg['n-mi'] !== undefined) { const el = document.getElementById('n-mi'); if(el) el.checked = cfg['n-mi']; }
+  if(cfg['n-fa'] !== undefined) { const el = document.getElementById('n-fa'); if(el) el.checked = cfg['n-fa']; }
+  if(cfg['n-sol'] !== undefined) { const el = document.getElementById('n-sol'); if(el) el.checked = cfg['n-sol']; }
+  if(cfg['n-la'] !== undefined) { const el = document.getElementById('n-la'); if(el) el.checked = cfg['n-la']; }
+  if(cfg['n-si'] !== undefined) { const el = document.getElementById('n-si'); if(el) el.checked = cfg['n-si']; }
+  
+  const tvEl = document.getElementById('tv') || document.getElementById('tempo-val'); const tmEl = document.getElementById('tempo'); if(tvEl && tmEl) tvEl.textContent = tmEl.value;
+  const lvEl = document.getElementById('lv'); const lnEl = document.getElementById('length'); if(lvEl && lnEl) lvEl.textContent = lnEl.value;
+  const modeEl = document.getElementById('mode'); if(modeEl) { const ev = new Event('change'); modeEl.dispatchEvent(ev); }
+}
+
+function resetConfig() {
+  try { localStorage.removeItem(CFG_KEY); } catch(e) {}
+  loadConfig();
+}
+
+// Auto-save sur tout changement dans la config
+document.addEventListener('change', e => {
+  const cfg = document.querySelector('.cfg, .cg, #config-panel');
+  if (e.target.closest ? e.target.closest('.cfg, .panel, form') : true) saveConfig();
+});
+document.addEventListener('input', e => {
+  if (e.target.type === 'range') saveConfig();
+});
 </script>
 </body>
 </html>

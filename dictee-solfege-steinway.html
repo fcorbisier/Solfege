@@ -235,6 +235,7 @@ body.light .staff-wrap,.light .staff-container{background:#fff!important;border-
       <div id="note-stats"><span style="color:var(--muted);font-size:.7rem;font-style:italic">Aucune donnée encore</span></div>
     </div>
     <button class="btn btn-sm" style="margin-top:.8rem;color:var(--muted)" onclick="resetScore()">Réinitialiser</button>
+    <button class="btn btn-sm" style="margin-top:.5rem;color:var(--muted)" onclick="resetConfig()">↺ Config par défaut</button>
     <div id="save-indicator" style="font-size:.6rem;color:var(--muted);margin-top:.4rem;opacity:0;transition:opacity .5s">💾 Sauvegardé</div>
   </div>
 
@@ -299,6 +300,7 @@ body.light .staff-wrap,.light .staff-container{background:#fff!important;border-
       <div class="kbd" id="kbd"></div>
       <div style="display:flex;gap:.5rem">
         <button class="btn btn-p btn-sm" onclick="checkAnswer()">✓ Vérifier</button>
+        <button class="btn btn-sm" onclick="testAns()">▶ Tester</button>
         <button class="btn btn-sm" onclick="clearAns()">✗ Effacer</button>
         <button class="btn btn-sm" onclick="undoAns()">↩ Annuler</button>
       </div>
@@ -907,6 +909,18 @@ function renderAns(results) {
   });
 }
 
+function testAns(){
+  if(!ans.length||!samplerReady)return;
+  resumeAudio();
+  const beat=60/+document.getElementById('tempo').value;
+  const ac=Tone.getContext().rawContext;
+  const t0=ac.currentTime+0.2;
+  ans.forEach((note,i)=>{
+    const midi=NOTE_MAP[note]?.[octave];
+    if(midi) sampler.triggerAttackRelease(midi, beat*0.85, t0+i*beat);
+  });
+}
+
 function clearAns() {
   ans = []; chordAns = new Set();
   if (isChordMode()) updateAnswerUI();
@@ -1282,6 +1296,60 @@ setInterval(()=>{
     if(btn)btn.onclick=toggleTheme;
   });
 })();
+
+// ── Sauvegarde/restauration config ────────────────────────────────────
+const CFG_KEY = 'solfege_config_dictee_notes';
+const CFG_DEFAULTS = {"mode": "random", "length": "4", "tempo": "80"};
+
+function saveConfig() {
+  const cfg = {};
+  const el_mode = document.getElementById('mode'); if(el_mode) cfg['mode'] = el_mode.value;
+  const el_length = document.getElementById('length'); if(el_length) cfg['length'] = el_length.value;
+  const el_tempo = document.getElementById('tempo'); if(el_tempo) cfg['tempo'] = el_tempo.value;
+  const chk_kb_do = document.getElementById('kb-do'); if(chk_kb_do) cfg['kb-do'] = chk_kb_do.checked;
+  const chk_kb_re = document.getElementById('kb-re'); if(chk_kb_re) cfg['kb-re'] = chk_kb_re.checked;
+  const chk_kb_mi = document.getElementById('kb-mi'); if(chk_kb_mi) cfg['kb-mi'] = chk_kb_mi.checked;
+  const chk_kb_fa = document.getElementById('kb-fa'); if(chk_kb_fa) cfg['kb-fa'] = chk_kb_fa.checked;
+  const chk_kb_sol = document.getElementById('kb-sol'); if(chk_kb_sol) cfg['kb-sol'] = chk_kb_sol.checked;
+  const chk_kb_la = document.getElementById('kb-la'); if(chk_kb_la) cfg['kb-la'] = chk_kb_la.checked;
+  const chk_kb_si = document.getElementById('kb-si'); if(chk_kb_si) cfg['kb-si'] = chk_kb_si.checked;
+  
+  try { localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); } catch(e) {}
+}
+
+function loadConfig() {
+  let cfg;
+  try { cfg = JSON.parse(localStorage.getItem(CFG_KEY) || 'null'); } catch(e) {}
+  cfg = cfg || CFG_DEFAULTS;
+  if(cfg['mode'] !== undefined) { const el = document.getElementById('mode'); if(el) el.value = cfg['mode']; }
+  if(cfg['length'] !== undefined) { const el = document.getElementById('length'); if(el) el.value = cfg['length']; }
+  if(cfg['tempo'] !== undefined) { const el = document.getElementById('tempo'); if(el) el.value = cfg['tempo']; }
+  if(cfg['kb-do'] !== undefined) { const el = document.getElementById('kb-do'); if(el) el.checked = cfg['kb-do']; }
+  if(cfg['kb-re'] !== undefined) { const el = document.getElementById('kb-re'); if(el) el.checked = cfg['kb-re']; }
+  if(cfg['kb-mi'] !== undefined) { const el = document.getElementById('kb-mi'); if(el) el.checked = cfg['kb-mi']; }
+  if(cfg['kb-fa'] !== undefined) { const el = document.getElementById('kb-fa'); if(el) el.checked = cfg['kb-fa']; }
+  if(cfg['kb-sol'] !== undefined) { const el = document.getElementById('kb-sol'); if(el) el.checked = cfg['kb-sol']; }
+  if(cfg['kb-la'] !== undefined) { const el = document.getElementById('kb-la'); if(el) el.checked = cfg['kb-la']; }
+  if(cfg['kb-si'] !== undefined) { const el = document.getElementById('kb-si'); if(el) el.checked = cfg['kb-si']; }
+  
+  const tvEl = document.getElementById('tv') || document.getElementById('tempo-val'); const tmEl = document.getElementById('tempo'); if(tvEl && tmEl) tvEl.textContent = tmEl.value;
+  const lvEl = document.getElementById('lv'); const lnEl = document.getElementById('length'); if(lvEl && lnEl) lvEl.textContent = lnEl.value;
+  const modeEl = document.getElementById('mode'); if(modeEl) { const ev = new Event('change'); modeEl.dispatchEvent(ev); }
+}
+
+function resetConfig() {
+  try { localStorage.removeItem(CFG_KEY); } catch(e) {}
+  loadConfig();
+}
+
+// Auto-save sur tout changement dans la config
+document.addEventListener('change', e => {
+  const cfg = document.querySelector('.cfg, .cg, #config-panel');
+  if (e.target.closest ? e.target.closest('.cfg, .panel, form') : true) saveConfig();
+});
+document.addEventListener('input', e => {
+  if (e.target.type === 'range') saveConfig();
+});
 </script>
 </body>
 </html>
