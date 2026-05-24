@@ -204,6 +204,21 @@ input[type=range]{padding:.2rem 0;accent-color:var(--accent)}
 </style>
 </head>
 <body>
+
+<!-- Splash audio mobile -->
+<div id="audio-splash" style="display:none;position:fixed;inset:0;background:rgba(14,14,18,.97);
+  z-index:500;flex-direction:column;align-items:center;justify-content:center;gap:1.5rem;padding:2rem">
+  <div style="font-size:3rem">🎹</div>
+  <div style="font-family:'Playfair Display',serif;font-size:1.4rem;color:var(--accent);text-align:center">
+    Appuyez pour activer le son
+  </div>
+  <button id="audio-splash-btn" style="padding:.9rem 2rem;border-radius:10px;border:2px solid var(--accent);
+    background:var(--accent);color:var(--bg);font-family:'DM Mono',monospace;font-size:1rem;
+    font-weight:600;cursor:pointer;letter-spacing:.05em">
+    ▶ Démarrer
+  </button>
+</div>
+
 <button id="theme-btn" title="Thème clair/sombre">☀️</button>
 <div id="loading" style="display:none;position:fixed;inset:0;background:rgba(14,14,18,.95);flex-direction:column;align-items:center;justify-content:center;gap:1rem;z-index:999">
   <div class="load-icon">🎹</div>
@@ -657,7 +672,8 @@ async function ensureSampler(){
   document.getElementById('load-bar').style.width='0%';
   document.getElementById('load-msg').textContent='Chargement…';
   await loadTone();
-  await Tone.start();
+  try{await Tone.start();}catch(e){}
+  if(Tone.getContext().rawContext.state==="suspended"){try{await Tone.getContext().rawContext.resume();}catch(e){}}
   await loadSampler();
   samplerReady=true;
 }
@@ -1710,6 +1726,31 @@ document.addEventListener('change', e => {
 document.addEventListener('input', e => {
   if (e.target.type === 'range') saveConfig();
 });
+
+// ── Activation audio mobile ─────────────────────────────────────────
+// Sur iOS/Android, l'AudioContext doit être créé dans un tap synchrone
+(function(){
+  // Détecter mobile
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  if(!isMobile) return;
+
+  const splash = document.getElementById('audio-splash');
+  if(!splash) return;
+  splash.style.display = 'flex';
+
+  document.getElementById('audio-splash-btn').addEventListener('click', async function(){
+    // Créer et démarrer l'AudioContext dans le tap synchrone
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      await ctx.resume();
+    } catch(e) {}
+    // Puis démarrer Tone.js si déjà chargé
+    if(window.Tone) {
+      try { await window.Tone.start(); } catch(e) {}
+    }
+    splash.style.display = 'none';
+  }, {once: true});
+})();
 </script>
 </body>
 </html>
