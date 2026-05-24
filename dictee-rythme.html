@@ -879,6 +879,7 @@ function showCount(label, strong) {
 
 function playRhythm(seq){
   if(playing||!samplerReady)return;seq=seq||currentSeq;if(!seq.length)return;
+  resumeAudio();
   const ac=getAC(),beat=60/getTempo(),meter=getMeter();
   playing=true;document.getElementById('play-ind').classList.add('on');document.getElementById('btn-play').disabled=true;
 
@@ -1000,6 +1001,7 @@ function weightedPickFig(pool) {
 }
 
 async function generate(){
+  await resumeAudio();
   const meter=getMeter(),bars=getBars(),active=activeGroups(),target=meter*bars;
   if(!active.filter(g=>g.cat!=='silences').length){alert('Activez au moins une figure !');return;}
   const seq=[];let bb=0,total=0;
@@ -1521,6 +1523,14 @@ document.addEventListener('visibilitychange',()=>{
 document.addEventListener('click',()=>{
   if(samplerReady&&Tone){Tone.getContext().rawContext.resume().catch(()=>{});}
 },{passive:true});
+
+async function resumeAudio(){
+  if(!samplerReady||!Tone)return;
+  const ac=Tone.getContext().rawContext;
+  if(ac.state==='suspended'||ac.state==='interrupted'){
+    try{await ac.resume();}catch(e){}
+  }
+}
 
 setInterval(()=>{
   if(!samplerReady||!Tone)return;

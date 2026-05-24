@@ -424,6 +424,7 @@ function playSeq(s) {
   if (playing) return;
   s = s || seq;
   if (!s.length) return;
+  resumeAudio();
   Tone.start();
   playing = true;
   document.getElementById('play-ind').classList.add('on');
@@ -1217,6 +1218,14 @@ document.addEventListener('visibilitychange',()=>{
 document.addEventListener('click',()=>{
   if(samplerReady&&Tone){Tone.getContext().rawContext.resume().catch(()=>{});}
 },{passive:true});
+
+async function resumeAudio(){
+  if(!samplerReady||!Tone)return;
+  const ac=Tone.getContext().rawContext;
+  if(ac.state==='suspended'||ac.state==='interrupted'){
+    try{await ac.resume();}catch(e){}
+  }
+}
 
 setInterval(()=>{
   if(!samplerReady||!Tone)return;

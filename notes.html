@@ -447,6 +447,7 @@ function getActive(){
 
 async function generate(){
   await ensureAudio();
+  await resumeAudio();
   const active=getActive();
   if(!active.length){alert('Sélectionnez au moins une note.');return;}
   const mode=document.getElementById('mode').value;
@@ -484,6 +485,7 @@ function loadCustom(){
 // ═══ LECTURE ═══════════════════════════════
 function playSeq(){
   if(playing||!seq.length)return;
+  resumeAudio(); // relancer si suspendu
   playing=true;
   document.getElementById('play-ind').classList.add('on');
   document.getElementById('btn-play').disabled=true;
@@ -618,7 +620,14 @@ document.addEventListener('keydown',e=>{
 buildKbd();updateScore();
 document.getElementById('btn-gen').addEventListener('click',ensureAudio,{once:true});
 
-// Relancer l'AudioContext si la page est restée inactive
+// Relancer l'AudioContext si suspendu — appelé avant chaque lecture
+async function resumeAudio(){
+  if(!ready||!Tone)return;
+  const ac=Tone.getContext().rawContext;
+  if(ac.state==='suspended'||ac.state==='interrupted'){
+    try{await ac.resume();}catch(e){}
+  }
+}
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='visible'&&ready&&Tone){
     Tone.getContext().rawContext.resume().catch(()=>{});
