@@ -298,20 +298,24 @@ body.light .staff-wrap,.light .staff-container{background:#fff!important;border-
 
 <script>
 // ═══ DURÉES POUR MODE MÉLODIE ══════════════
-// Figures dont la durée est clairement audible sur une seule note
+// notes:1 = figure simple (1 note), notes:2 = groupe de 2 notes, notes:4 = groupe de 4
 const DURS = [
-  {id:'blanche',   beats:2,   sym:'𝅗𝅥', tone:'2n',  weight:1},
-  {id:'noire',     beats:1,   sym:'♩',  tone:'4n',  weight:4},
-  {id:'noire-pt',  beats:1.5, sym:'♩.', tone:'4n.', weight:1},
-  {id:'croche',    beats:.5,  sym:'♪',  tone:'8n',  weight:2},
+  {id:'blanche',   beats:2,   notes:1, sym:'𝅗𝅥', weight:1},
+  {id:'noire',     beats:1,   notes:1, sym:'♩',  weight:4},
+  {id:'noire-pt',  beats:1.5, notes:1, sym:'♩.', weight:1},
+  {id:'croche',    beats:.5,  notes:1, sym:'♪',  weight:2},
+  {id:'2croches',  beats:1,   notes:2, sym:'♪♪', weight:2},
+  {id:'4dcr',      beats:1,   notes:4, sym:'𝅘𝅥𝅯𝅘𝅥𝅯𝅘𝅥𝅯𝅘𝅥𝅯',weight:1},
 ];
 
-// Durée de la note jouée = durée réelle de la figure
+// Offsets et durées pour chaque note dans la figure
 const DUR_EVENTS = {
-  'blanche':    [{o:0, tone:'2n'}],
-  'noire':      [{o:0, tone:'4n'}],
-  'noire-pt':   [{o:0, tone:'4n.'}],
-  'croche':     [{o:0, tone:'8n'}],
+  'blanche':   [{o:0,    tone:'2n'}],
+  'noire':     [{o:0,    tone:'4n'}],
+  'noire-pt':  [{o:0,    tone:'4n.'}],
+  'croche':    [{o:0,    tone:'8n'}],
+  '2croches':  [{o:0,    tone:'8n'}, {o:.5,  tone:'8n'}],
+  '4dcr':      [{o:0,    tone:'16n'},{o:.25, tone:'16n'},{o:.5, tone:'16n'},{o:.75,tone:'16n'}],
 };
 
 function randDur(){
@@ -319,6 +323,30 @@ function randDur(){
   let r=Math.random()*total;
   for(const d of DURS){r-=d.weight;if(r<=0)return d;}
   return DURS[1];
+}
+
+// Génère la séquence de notes en tenant compte des figures multi-notes
+// Retourne [{note, durId, noteIdx, offsetInGroup}]
+function buildMelodySeq(active, len){
+  const result=[];
+  let remaining=len;
+  while(remaining>0){
+    const dur=randDur();
+    const count=Math.min(dur.notes, remaining);
+    // Si on ne peut pas remplir le groupe, on prend une figure simple
+    const actualDur = count < dur.notes ? DURS.find(d=>d.notes===1&&d.beats<=.5)||DURS[3] : dur;
+    const actualCount = actualDur.notes;
+    for(let j=0;j<actualCount;j++){
+      result.push({
+        note: active[Math.floor(Math.random()*active.length)],
+        durId: actualDur.id,
+        noteIdx: j,
+        groupSize: actualCount,
+      });
+    }
+    remaining -= actualCount;
+  }
+  return result;
 }
 
 // ═══ DONNÉES ═══════════════════════════════
@@ -437,13 +465,28 @@ function buildStaff(results){
     const y=noteY(note,oct);
     const col=results?(results[i]?'var(--success)':'var(--error)'):(COLORS[note]||'var(--text)');
     const hidden=!revealed&&!results;
-    const durId=isMelody?(melodyDurs[i]?.id||'noire'):'noire';
+    const durId=isMelody?(melodyDurs[i]?.durId||'noire'):'noire';
 
     svg+=`<g class="sn" data-i="${i}">`;
     svg+=noteHeadSVG(x,y,col,durId,hidden);
 
     if(!hidden){
       svg+=`<text x="${x}" y="112" text-anchor="middle" font-size="${window.innerWidth<=600?12:9}" font-family="DM Mono,monospace" fill="${col}" opacity=".8">${cap(note)}</text>`;
+
+      // Ligature entre notes du même groupe (2 croches, 4 dcr)
+      if(isMelody){
+        const item=melodyDurs[i];
+        if(item&&item.groupSize>1&&item.noteIdx<item.groupSize-1){
+          // Relier cette note à la suivante par une ligature
+          const xNext=x0+(i+1)*sp+sp/2;
+          const stemY=y>=54? y-33 : y+33;
+          const stemX=y>=54? x+6 : x-6;
+          const stemXNext=y>=54? xNext+6 : xNext-6;
+          svg+=`<line x1="${stemX}" y1="${stemY}" x2="${stemXNext}" y2="${stemY}" stroke="${col}" stroke-width="2.5"/>`;
+          if(durId==='4dcr')
+            svg+=`<line x1="${stemX}" y1="${stemY+6}" x2="${stemXNext}" y2="${stemY+6}" stroke="${col}" stroke-width="2.5"/>`;
+        }
+      }
     }
     svg+=`</g>`;
   });
@@ -471,8 +514,14 @@ async function generate(){
   if(!active.length){alert('Sélectionnez au moins une note.');return;}
   const mode=document.getElementById('mode').value;
   const len=+document.getElementById('length').value;
-  seq=Array.from({length:len},()=>active[Math.floor(Math.random()*active.length)]);
-  melodyDurs=mode==='melody'?Array.from({length:len},()=>randDur()):[];
+  if(mode==='melody'){
+    const melodyItems=buildMelodySeq(active,len);
+    seq=melodyItems.map(m=>m.note);
+    melodyDurs=melodyItems; // tableau d'objets {note,durId,noteIdx,groupSize}
+  } else {
+    seq=Array.from({length:len},()=>active[Math.floor(Math.random()*active.length)]);
+    melodyDurs=[];
+  }
   ans=[];revealed=false;
   buildStaff(null);
   renderAns(null);
@@ -514,20 +563,23 @@ function playSeq(){
   const isMelody=melodyDurs.length>0;
 
   if(isMelody){
-    // Mode mélodie : chaque note a une durée propre, on avance le curseur
+    // Mode mélodie : melodyDurs contient {note,durId,noteIdx,groupSize}
     let cursor=0;
     seq.forEach((note,i)=>{
-      const dur=melodyDurs[i];
-      const events=DUR_EVENTS[dur.id]||[{o:0,tone:'4n'}];
-      events.forEach(ev=>{
-        const tNote=t0+(cursor+ev.o)*beat;
-        const midi=NOTE_MAP[note]?.[oct];
-        if(midi) sampler.triggerAttackRelease(midi, ev.tone, tNote);
-      });
-      // Highlight sur le premier événement de la figure
-      const tHighlight=t0+cursor*beat;
-      setTimeout(()=>hlNote(i),(tHighlight-ac.currentTime)*1000);
-      cursor+=dur.beats;
+      const item=melodyDurs[i];
+      const durId=item.durId||'noire';
+      const events=DUR_EVENTS[durId]||[{o:0,tone:'4n'}];
+      const ev=events[item.noteIdx]||events[0];
+      const tNote=t0+(cursor+ev.o)*beat;
+      const midi=NOTE_MAP[note]?.[oct];
+      if(midi) sampler.triggerAttackRelease(midi, ev.tone, tNote);
+      // Highlight à l'instant précis de cette note
+      setTimeout(()=>hlNote(i),(tNote-ac.currentTime)*1000);
+      // Avancer le curseur seulement à la fin du groupe
+      if(item.noteIdx===item.groupSize-1){
+        const dur=DURS.find(d=>d.id===durId)||DURS[1];
+        cursor+=dur.beats;
+      }
     });
     const totalMs=(t0+cursor*beat-ac.currentTime)*1000+300;
     setTimeout(()=>{
@@ -537,7 +589,6 @@ function playSeq(){
       playing=false;
     },totalMs);
   } else {
-    // Mode normal : toutes les notes en noires
     seq.forEach((note,i)=>{
       const tNote=t0+i*beat;
       const midi=NOTE_MAP[note]?.[oct]||'C4';
@@ -555,7 +606,6 @@ function playSeq(){
 }
 
 function testAns(){
-  // Joue les notes saisies sans vérifier
   if(!ans.length||!ready)return;
   resumeAudio();
   const beat=60/+document.getElementById('tempo').value;
@@ -564,16 +614,19 @@ function testAns(){
   const isMelody=melodyDurs.length>0;
 
   if(isMelody){
-    // Respecter le rythme de la mélodie
     let cursor=0;
     ans.forEach((note,i)=>{
-      const dur=melodyDurs[i]||DURS[1]; // noire par défaut
-      const events=DUR_EVENTS[dur.id]||[{o:0,tone:'4n'}];
-      events.forEach(ev=>{
-        const midi=NOTE_MAP[note]?.[oct];
-        if(midi) sampler.triggerAttackRelease(midi, ev.tone, t0+(cursor+ev.o)*beat);
-      });
-      cursor+=dur.beats;
+      const item=melodyDurs[i];
+      if(!item){const midi=NOTE_MAP[note]?.[oct];if(midi)sampler.triggerAttackRelease(midi,'4n',t0+cursor*beat);cursor+=1;return;}
+      const durId=item.durId||'noire';
+      const events=DUR_EVENTS[durId]||[{o:0,tone:'4n'}];
+      const ev=events[item.noteIdx]||events[0];
+      const midi=NOTE_MAP[note]?.[oct];
+      if(midi) sampler.triggerAttackRelease(midi, ev.tone, t0+(cursor+ev.o)*beat);
+      if(item.noteIdx===item.groupSize-1){
+        const dur=DURS.find(d=>d.id===durId)||DURS[1];
+        cursor+=dur.beats;
+      }
     });
   } else {
     // Mode normal : toutes en noires
