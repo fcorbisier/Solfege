@@ -547,6 +547,44 @@ function playGrp(grp, tAbs){
   });
 }
 
+// clickT — utilise Tone.now() comme référence (même horloge que sampler)
+function clickT(tTone, acc){
+  // Convertir Tone.now() en ac.currentTime
+  const ac=Tone.getContext().rawContext;
+  const t=ac.currentTime+(tTone-Tone.now());
+  const o=ac.createOscillator(),g=ac.createGain();
+  o.type='sine';o.frequency.value=acc?1100:750;
+  g.gain.setValueAtTime(acc?.4:.2,t);g.gain.exponentialRampToValueAtTime(.001,t+.04);
+  o.connect(g);g.connect(ac.destination);o.start(t);o.stop(t+.05);
+}
+
+// playGrpT — tTone est en Tone.now()
+function playGrpT(grp, tTone){
+  const beat=60/+document.getElementById('tempo').value;
+  const soundType=getSoundType();
+  const events={
+    'ronde':[{o:0,d:3.5}],'blanche':[{o:0,d:1.7}],'noire':[{o:0,d:.85}],
+    'croche':[{o:0,d:.4}],
+    'blanche-pt':[{o:0,d:2.5}],'noire-pt':[{o:0,d:1.3}],
+    '2croches':[{o:0,d:.4},{o:.5,d:.4}],
+    '4dcroches':[{o:0,d:.2},{o:.25,d:.2},{o:.5,d:.2},{o:.75,d:.2}],
+    'croche-2dcr':[{o:0,d:.4},{o:.5,d:.2},{o:.75,d:.2}],
+    'contretemps':[{o:.5,d:.4}],
+    's-ronde':[],'s-blanche':[],'s-noire':[],'s-croche':[],
+  };
+  (events[grp.id]||[]).forEach(ev=>{
+    const tNote=tTone+ev.o*beat; // en Tone.now()
+    if(soundType==='piano'){
+      if(!sampler||!sampler.loaded)return;
+      sampler.triggerAttackRelease(getPianoMidi(), Math.max(ev.d*beat,.18), tNote);
+    } else {
+      // Convertir en ac.currentTime pour playPercussion
+      const ac=Tone.getContext().rawContext;
+      playPercussion(ac.currentTime+(tNote-Tone.now()), soundType);
+    }
+  });
+}
+
 function click(t,acc){
   const ac=Tone.getContext().rawContext;
   const o=ac.createOscillator(),g=ac.createGain();
@@ -681,28 +719,18 @@ function playRhythm(){
   playing=true;
   document.getElementById('play-ind').classList.add('on');
   document.getElementById('btn-play').disabled=true;
-  let t=ac.currentTime+.2;
 
-  // === TRACES TIMING ===
-  console.group('🎵 playRhythm — timing audit');
-  console.log(`ac.currentTime   = ${ac.currentTime.toFixed(4)}`);
-  console.log(`Tone.now()       = ${Tone.now().toFixed(4)}`);
-  console.log(`Offset Tone-AC   = ${(Tone.now()-ac.currentTime).toFixed(4)}s`);
-  console.log(`beat             = ${beat.toFixed(4)}s`);
-  console.log(`t0 (intro start) = ${t.toFixed(4)}`);
-
-  for(let i=0;i<meter;i++){click(t,i===0);t+=beat;}
+  // Utiliser Tone.now() comme référence unique pour metro ET notes
+  const tNow=Tone.now();
+  let t=tNow+.2;
+  for(let i=0;i<meter;i++){clickT(t,i===0);t+=beat;}
   const seqStart=t;
-  console.log(`seqStart         = ${seqStart.toFixed(4)} (ac)`);
-
   const total=currentSeq.reduce((s,id)=>s+(G(id)?.beats||0),0);
 
   if(document.getElementById('metro-on').checked){
     const totalBeats=currentSeq.reduce((s,id)=>s+(G(id)?.beats||0),0);
     for(let b=0;b<totalBeats;b++){
-      const tClick=seqStart+b*beat;
-      if(b<4) console.log(`  Metro beat ${b}   = ${tClick.toFixed(4)} (ac)`);
-      click(tClick, b%meter===0);
+      clickT(seqStart+b*beat, b%meter===0);
     }
   }
 
@@ -710,27 +738,21 @@ function playRhythm(){
   currentSeq.forEach((id,i)=>{
     const grp=G(id);
     const tNote=seqStart+cursor*beat;
-    // Trace pour les 4 premières figures
-    if(i<4){
-      const toneEquiv=Tone.now()+(tNote-ac.currentTime);
-      console.log(`  Note[${i}] "${id}" : ac=${tNote.toFixed(4)} | Tone.now+offset=${toneEquiv.toFixed(4)} | diff=${(toneEquiv-tNote).toFixed(4)}s`);
-    }
-    const delay=(tNote-ac.currentTime)*1000;
+    const delayMs=(tNote-tNow)*1000;
     setTimeout(()=>{
       document.querySelectorAll('.ncell').forEach(e=>e.style.opacity='');
       const cell=document.getElementById('nc-'+i);if(cell)cell.style.opacity='1';
-    },delay);
-    playGrp(grp,tNote);
+    },delayMs);
+    playGrpT(grp, tNote);
     cursor+=grp.beats;
   });
-  console.groupEnd();
 
   setTimeout(()=>{
     document.querySelectorAll('.ncell').forEach(e=>e.style.opacity='');
     document.getElementById('play-ind').classList.remove('on');
     document.getElementById('btn-play').disabled=false;
     playing=false;
-  },(seqStart+total*beat-ac.currentTime)*1000+400);
+  },(seqStart+total*beat-tNow)*1000+400);
 }
 
 // ═══ RÉPONSE ═══════════════════════════════

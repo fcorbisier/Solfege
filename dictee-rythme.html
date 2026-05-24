@@ -667,8 +667,19 @@ async function ensureSampler(){
 // Click métronome — utilise le contexte Tone.js (disponible après ensureSampler)
 function getAC(){ return Tone.getContext().rawContext; }
 function click(t,acc){
-  if(!samplerReady)return; // pas de contexte avant init
+  if(!samplerReady)return;
   const ac=getAC();
+  const o=ac.createOscillator(),g=ac.createGain();
+  o.type='sine';o.frequency.value=acc?1200:800;
+  g.gain.setValueAtTime(acc?.45:.22,t);g.gain.exponentialRampToValueAtTime(.001,t+.04);
+  o.connect(g);g.connect(ac.destination);o.start(t);o.stop(t+.05);
+}
+
+// clickT — tTone est en Tone.now(), converti en ac.currentTime pour les oscillateurs natifs
+function clickT(tTone,acc){
+  if(!samplerReady)return;
+  const ac=getAC();
+  const t=ac.currentTime+(tTone-Tone.now());
   const o=ac.createOscillator(),g=ac.createGain();
   o.type='sine';o.frequency.value=acc?1200:800;
   g.gain.setValueAtTime(acc?.45:.22,t);g.gain.exponentialRampToValueAtTime(.001,t+.04);
@@ -744,15 +755,20 @@ function playPiano(t, dur){
 }
 
 function playGrp(grp, tAbs, beat){
+  // tAbs est maintenant en Tone.now() — référence unique
   const ac=getAC();
-  const toneOffset=tAbs-ac.currentTime;
   const minBeat=Math.max(beat,0.25);
   const soundType=getSoundType();
   grp.events.forEach(ev=>{
     if(!ev.r){
-      const tNote=tAbs+ev.o*minBeat;
-      if(soundType==='piano') playPiano(Tone.now()+toneOffset+ev.o*minBeat, ev.d*minBeat);
-      else playPercussion(tNote, soundType);
+      const tNote=tAbs+ev.o*minBeat; // en Tone.now()
+      if(soundType==='piano'){
+        playPiano(tNote, ev.d*minBeat); // sampler parle Tone.now() nativement
+      } else {
+        // Convertir en ac.currentTime pour playPercussion
+        const tAC=ac.currentTime+(tNote-Tone.now());
+        playPercussion(tAC, soundType);
+      }
     }
   });
 }
@@ -967,9 +983,10 @@ function playRhythm(seq){
   if(countOn()) { countEl.style.display='block'; showCount('…',''); }
   else countEl.style.display='none';
 
-  let t=ac.currentTime+.2;
+  const tNow=Tone.now();
+  let t=tNow+.2;
   // Mesure d'intro
-  for(let i=0;i<meter;i++){click(t,i===0);t+=beat;}
+  for(let i=0;i<meter;i++){clickT(t,i===0);t+=beat;}
   const seqStart=t;
   const totalBeats=seq.reduce((s,id)=>s+(G(id)?.beats||0),0);
   const totalDur=totalBeats*beat;
@@ -978,18 +995,18 @@ function playRhythm(seq){
   if(metroOn()){
     for(let b=0;b<totalBeats;b++){
       const bt=seqStart+b*beat;
-      click(bt,b%meter===0);
-      setTimeout(flashM,(bt-ac.currentTime)*1000);
+      clickT(bt,b%meter===0);
+      setTimeout(flashM,(bt-tNow)*1000);
     }
   }
 
-  // Comptage à voix haute — tous les demi-temps (noire + croche)
+  // Comptage à voix haute
   if(countOn()){
     const countLabels = buildCountLabels(meter, totalBeats);
     countLabels.forEach(({t:offset, label, strong}) => {
       const tCount = seqStart + offset * beat;
       if(tCount < seqStart + totalDur) {
-        setTimeout(() => showCount(label, strong), (tCount - ac.currentTime)*1000);
+        setTimeout(() => showCount(label, strong), (tCount - tNow)*1000);
       }
     });
   }
@@ -998,9 +1015,9 @@ function playRhythm(seq){
   const nc=document.querySelectorAll('.ncell');
   let cursor=0;
   seq.forEach((id,i)=>{
-    const grp=G(id),dur=grp.beats*beat;
+    const grp=G(id);
     const tNote=seqStart+cursor*beat;
-    const delay=(tNote-ac.currentTime)*1000;
+    const delay=(tNote-tNow)*1000;
     setTimeout(()=>{nc.forEach(e=>e.classList.remove('active'));nc[i]?.classList.add('active');if(!metroOn())flashM();},delay);
     playGrp(grp,tNote,beat);
     cursor+=grp.beats;
@@ -1012,15 +1029,19 @@ function playRhythm(seq){
     document.getElementById('btn-play').disabled=false;
     if(countOn()){ countEl.textContent=''; }
     playing=false;
-  },(seqStart+totalDur-ac.currentTime)*1000+400);
+  },(seqStart+totalDur-tNow)*1000+400);
 }
 
 function playMetro(){
-  if(playing||!samplerReady)return;const ac=getAC(),beat=60/getTempo(),meter=getMeter(),bars=getBars();
+  if(playing||!samplerReady)return;
+  const beat=60/getTempo(),meter=getMeter(),bars=getBars();
   playing=true;document.getElementById('btn-metro').disabled=true;
-  let t=ac.currentTime+.1;
-  for(let b=0;b<bars;b++)for(let i=0;i<meter;i++){click(t,i===0);setTimeout(flashM,(t-ac.currentTime)*1000);t+=beat;}
-  setTimeout(()=>{document.getElementById('btn-metro').disabled=false;playing=false;},(t-ac.currentTime)*1000+100);
+  const tNow=Tone.now();
+  let t=tNow+.1;
+  for(let b=0;b<bars;b++)for(let i=0;i<meter;i++){
+    clickT(t,i===0);setTimeout(flashM,(t-tNow)*1000);t+=beat;
+  }
+  setTimeout(()=>{document.getElementById('btn-metro').disabled=false;playing=false;},(t-tNow)*1000+100);
 }
 function flashM(){const d=document.getElementById('metro-dot');d.classList.remove('beat');void d.offsetWidth;d.classList.add('beat');}
 
