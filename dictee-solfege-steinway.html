@@ -1269,8 +1269,8 @@ async function ensureSampler() {
   document.getElementById('load-bar').style.width = '0%';
   document.getElementById('load-msg').textContent = 'Chargement du piano Steinway…';
   await loadTone();
-  try{await Tone.start();}catch(e){}
-  if(Tone.getContext().rawContext.state==="suspended"){try{await Tone.getContext().rawContext.resume();}catch(e){}}
+  try{ await Tone.start(); }catch(e){}
+  try{ const ac=Tone.getContext().rawContext; if(ac.state!=="running") await ac.resume(); }catch(e){}
   await loadSampler();
   samplerReady = true;
 }
@@ -1383,28 +1383,30 @@ document.addEventListener('input', e => {
   if (e.target.type === 'range') saveConfig();
 });
 
-// ── Activation audio mobile ─────────────────────────────────────────
-// Sur iOS/Android, l'AudioContext doit être créé dans un tap synchrone
+// ── Activation audio mobile (iOS/Android) ──────────────────────────
 (function(){
-  // Détecter mobile
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-  if(!isMobile) return;
-
   const splash = document.getElementById('audio-splash');
   if(!splash) return;
+
+  // Afficher sur mobile ET sur desktop si l'audio n'est pas encore prêt
   splash.style.display = 'flex';
 
   document.getElementById('audio-splash-btn').addEventListener('click', async function(){
-    // Créer et démarrer l'AudioContext dans le tap synchrone
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      await ctx.resume();
-    } catch(e) {}
-    // Puis démarrer Tone.js si déjà chargé
-    if(window.Tone) {
-      try { await window.Tone.start(); } catch(e) {}
-    }
     splash.style.display = 'none';
+    // Sur iOS, Tone.start() DOIT être appelé ici, dans le handler synchrone du tap
+    // On charge Tone.js maintenant si pas encore chargé
+    if(!window.Tone) {
+      await new Promise((res,rej) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js';
+        s.onload = res; s.onerror = rej;
+        document.head.appendChild(s);
+      });
+    }
+    // Démarrer Tone dans le tap — iOS l'accepte car c'est synchrone au geste
+    try { await window.Tone.start(); } catch(e) { console.warn('Tone.start', e); }
+    console.log('AudioContext state:', window.Tone?.getContext()?.rawContext?.state);
   }, {once: true});
 })();
 </script>
