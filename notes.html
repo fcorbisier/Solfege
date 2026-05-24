@@ -298,27 +298,20 @@ body.light .staff-wrap,.light .staff-container{background:#fff!important;border-
 
 <script>
 // ═══ DURÉES POUR MODE MÉLODIE ══════════════
-// Chaque durée : id, beats, symbole SMuFL, durée Tone.js
+// Figures dont la durée est clairement audible sur une seule note
 const DURS = [
-  {id:'blanche',   beats:2,   sym:'𝅗𝅥', tone:'2n',   weight:1},
-  {id:'noire',     beats:1,   sym:'♩',  tone:'4n',   weight:3},
-  {id:'noire-pt',  beats:1.5, sym:'♩.', tone:'4n.',  weight:1},
-  {id:'croche',    beats:.5,  sym:'♪',  tone:'8n',   weight:2},
-  {id:'2croches',  beats:1,   sym:'♪♪', tone:'8n',   weight:2},
-  {id:'4dcr',      beats:1,   sym:'𝅘𝅥𝅯𝅘𝅥𝅯𝅘𝅥𝅯𝅘𝅥𝅯', tone:'16n', weight:1},
-  {id:'contretemps',beats:1,  sym:'𝄾♪', tone:'8n',   weight:1},
+  {id:'blanche',   beats:2,   sym:'𝅗𝅥', tone:'2n',  weight:1},
+  {id:'noire',     beats:1,   sym:'♩',  tone:'4n',  weight:4},
+  {id:'noire-pt',  beats:1.5, sym:'♩.', tone:'4n.', weight:1},
+  {id:'croche',    beats:.5,  sym:'♪',  tone:'8n',  weight:2},
 ];
 
-// Notes d'une figure : {offset en beats, durée Tone}
-// En mode mélodie on joue UNE SEULE note par figure à offset 0
+// Durée de la note jouée = durée réelle de la figure
 const DUR_EVENTS = {
-  'blanche':     [{o:0, tone:'2n'}],
-  'noire':       [{o:0, tone:'4n'}],
-  'noire-pt':    [{o:0, tone:'4n.'}],
-  'croche':      [{o:0, tone:'8n'}],
-  '2croches':    [{o:0, tone:'8n'}],   // 1 note, durée croche, mais 1 temps total
-  '4dcr':        [{o:0, tone:'16n'}],  // 1 note, durée double croche
-  'contretemps': [{o:0.5, tone:'8n'}], // silence ½ temps + note croche
+  'blanche':    [{o:0, tone:'2n'}],
+  'noire':      [{o:0, tone:'4n'}],
+  'noire-pt':   [{o:0, tone:'4n.'}],
+  'croche':     [{o:0, tone:'8n'}],
 };
 
 function randDur(){
@@ -383,7 +376,6 @@ function piano(note,o,dur){
 }
 
 // ═══ PORTÉE SVG ════════════════════════════
-// Rendu d'une tête de note avec sa figure rythmique
 function noteHeadSVG(x, y, col, durId, hidden){
   if(hidden){
     return `<g filter="url(#note-blur)" opacity=".18">
@@ -393,33 +385,24 @@ function noteHeadSVG(x, y, col, durId, hidden){
   }
   const up=y>=54;
   let svg='';
-  // Ligne supplémentaire Do
+  // Lignes supplémentaires
   if(y===90) svg+=`<line x1="${x-10}" y1="90" x2="${x+10}" y2="90" stroke="${col}" stroke-width="1.2" opacity=".7"/>`;
   if(y===48) svg+=`<line x1="${x-10}" y1="48" x2="${x+10}" y2="48" stroke="${col}" stroke-width="1.2" opacity=".7"/>`;
 
-  const isOpen = durId==='blanche'||durId==='blanche-pt';
-  const isRest  = durId==='contretemps'; // commence par un silence
+  // Tête
+  const isOpen=durId==='blanche'||durId==='blanche-pt';
+  if(isOpen) svg+=`<ellipse cx="${x}" cy="${y}" rx="7" ry="5" transform="rotate(-15,${x},${y})" fill="none" stroke="${col}" stroke-width="1.7"/>`;
+  else       svg+=`<ellipse cx="${x}" cy="${y}" rx="7" ry="5" transform="rotate(-15,${x},${y})" fill="${col}"/>`;
 
-  if(isOpen){
-    svg+=`<ellipse cx="${x}" cy="${y}" rx="7" ry="5" transform="rotate(-15,${x},${y})" fill="none" stroke="${col}" stroke-width="1.7"/>`;
-  } else {
-    svg+=`<ellipse cx="${x}" cy="${y}" rx="7" ry="5" transform="rotate(-15,${x},${y})" fill="${col}"/>`;
-  }
-
-  // Hampe
-  const hampeUp = up;
-  if(durId!=='blanche'&&durId!=='noire'){
-    // Hampe toujours
-  }
-  if(hampeUp){
-    svg+=`<line x1="${x+6}" y1="${y-2}" x2="${x+6}" y2="${y-33}" stroke="${col}" stroke-width="1.5"/>`;
-    // Crochet croche
-    if(durId==='croche'||durId==='contretemps')
-      svg+=`<path d="M${x+6},${y-33} C${x+18},${y-25} ${x+18},${y-13} ${x+6},${y-9}" fill="none" stroke="${col}" stroke-width="1.5"/>`;
-  } else {
-    svg+=`<line x1="${x-6}" y1="${y+2}" x2="${x-6}" y2="${y+33}" stroke="${col}" stroke-width="1.5"/>`;
-    if(durId==='croche'||durId==='contretemps')
-      svg+=`<path d="M${x-6},${y+33} C${x+6},${y+25} ${x+6},${y+13} ${x-6},${y+9}" fill="none" stroke="${col}" stroke-width="1.5"/>`;
+  // Hampe (toutes sauf ronde)
+  if(durId!=='ronde'){
+    if(up){
+      svg+=`<line x1="${x+6}" y1="${y-2}" x2="${x+6}" y2="${y-33}" stroke="${col}" stroke-width="1.5"/>`;
+      if(durId==='croche') svg+=`<path d="M${x+6},${y-33} C${x+18},${y-25} ${x+18},${y-13} ${x+6},${y-9}" fill="none" stroke="${col}" stroke-width="1.5"/>`;
+    } else {
+      svg+=`<line x1="${x-6}" y1="${y+2}" x2="${x-6}" y2="${y+33}" stroke="${col}" stroke-width="1.5"/>`;
+      if(durId==='croche') svg+=`<path d="M${x-6},${y+33} C${x+6},${y+25} ${x+6},${y+13} ${x-6},${y+9}" fill="none" stroke="${col}" stroke-width="1.5"/>`;
+    }
   }
   // Point augmentation
   if(durId==='noire-pt'||durId==='blanche-pt')
@@ -460,33 +443,7 @@ function buildStaff(results){
     svg+=noteHeadSVG(x,y,col,durId,hidden);
 
     if(!hidden){
-      // Nom de la note
       svg+=`<text x="${x}" y="112" text-anchor="middle" font-size="${window.innerWidth<=600?12:9}" font-family="DM Mono,monospace" fill="${col}" opacity=".8">${cap(note)}</text>`;
-      // Symbole de durée en mode mélodie (Bravura Text, en dessous du nom)
-      if(isMelody){
-        const symCol=hidden?'var(--muted)':col;
-        const sym=melodyDurs[i]?.sym||'♩';
-        // Ligatures pour 2 croches et 4 dcr
-        if(durId==='2croches'){
-          const off=sp*.3;
-          svg+=`<ellipse cx="${x-off}" cy="${y}" rx="7" ry="5" transform="rotate(-15,${x-off},${y})" fill="${col}"/>`;
-          svg+=`<line x1="${x-off+6}" y1="${y-2}" x2="${x-off+6}" y2="${y-33}" stroke="${col}" stroke-width="1.5"/>`;
-          svg+=`<line x1="${x-off+6}" y1="${y-33}" x2="${x+6}" y2="${y-33}" stroke="${col}" stroke-width="2.5"/>`;
-        }
-        if(durId==='4dcr'){
-          [-1.5,-.5].forEach(k=>{
-            const xk=x+k*sp*.2;
-            svg+=`<ellipse cx="${xk}" cy="${y}" rx="7" ry="5" transform="rotate(-15,${xk},${y})" fill="${col}"/>`;
-            svg+=`<line x1="${xk+6}" y1="${y-2}" x2="${xk+6}" y2="${y-33}" stroke="${col}" stroke-width="1.5"/>`;
-          });
-          svg+=`<line x1="${x-1.5*sp*.2+6}" y1="${y-33}" x2="${x+6}" y2="${y-33}" stroke="${col}" stroke-width="2.5"/>`;
-          svg+=`<line x1="${x-1.5*sp*.2+6}" y1="${y-26}" x2="${x+6}" y2="${y-26}" stroke="${col}" stroke-width="2.5"/>`;
-        }
-        if(durId==='contretemps'){
-          // Demi-soupir avant la croche
-          svg+=`<text x="${x-18}" y="${y+6}" font-family="Bravura Text,serif" font-size="20" fill="${col}" opacity=".8">𝄾</text>`;
-        }
-      }
     }
     svg+=`</g>`;
   });
