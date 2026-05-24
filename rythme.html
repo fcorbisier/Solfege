@@ -214,21 +214,22 @@ input[type=range]{padding:.2rem 0;accent-color:var(--accent)}
 <script>
 // ═══ FIGURES ═══════════════════════════════
 const GROUPS=[
-  {id:'ronde',    beats:4,   cat:'n', label:'Ronde',     W:52},
-  {id:'blanche',  beats:2,   cat:'n', label:'Blanche',   W:46},
-  {id:'noire',    beats:1,   cat:'n', label:'Noire',     W:40},
-  {id:'2croches', beats:1,   cat:'g', label:'2 croches', W:52},
-  {id:'4croches', beats:2,   cat:'g', label:'4 croches', W:72},
+  {id:'ronde',    beats:4,   cat:'n', label:'Ronde',      W:52},
+  {id:'blanche',  beats:2,   cat:'n', label:'Blanche',    W:46},
+  {id:'noire',    beats:1,   cat:'n', label:'Noire',      W:40},
+  {id:'croche',   beats:.5,  cat:'n', label:'Croche',     W:38},
+  {id:'2croches', beats:1,   cat:'g', label:'2 croches',  W:52},
+  {id:'4dcroches',beats:1,   cat:'g', label:'4 d.croches',W:72},
   {id:'croche-2dcr',beats:1, cat:'g', label:'♪𝅘𝅥𝅯𝅘𝅥𝅯',    W:58},
   {id:'contretemps',beats:1, cat:'g', label:'Contretemps',W:52},
-  {id:'s-ronde',  beats:4,   cat:'s', label:'Pause',     W:46},
-  {id:'s-blanche',beats:2,   cat:'s', label:'½-pause',   W:40},
-  {id:'s-noire',  beats:1,   cat:'s', label:'Soupir',    W:36},
-  {id:'s-croche', beats:.5,  cat:'s', label:'½-soupir',  W:34},
-  {id:'noire-pt', beats:1.5, cat:'n', label:'Noire pt.', W:48},
+  {id:'s-ronde',  beats:4,   cat:'s', label:'Pause',      W:46},
+  {id:'s-blanche',beats:2,   cat:'s', label:'½-pause',    W:40},
+  {id:'s-noire',  beats:1,   cat:'s', label:'Soupir',     W:36},
+  {id:'s-croche', beats:.5,  cat:'s', label:'½-soupir',   W:34},
+  {id:'noire-pt', beats:1.5, cat:'n', label:'Noire pt.',  W:48},
   {id:'blanche-pt',beats:3,  cat:'n', label:'Blanche pt.',W:54},
 ];
-const DEFAULT_ON=new Set(['noire','2croches','4croches','contretemps','s-noire']);
+const DEFAULT_ON=new Set(['noire','2croches','contretemps','s-noire']);
 function G(id){return GROUPS.find(g=>g.id===id);}
 
 // ═══ SVG FIGURES — Police Bravura Text (SMuFL) ═════
@@ -284,13 +285,16 @@ function svgFig(id, col, W, H){
     case 'blanche-pt':body=hO(cx,NH)+sU(cx,NH,SL)+dt(cx,NH); break;
     case 'noire':     body=hF(cx,NH)+sU(cx,NH,SL); break;
     case 'noire-pt':  body=hF(cx,NH)+sU(cx,NH,SL)+dt(cx,NH); break;
+    case 'croche':    body=hF(cx,NH)+sU(cx,NH,SL)+flg(cx,NH-SL); break;
     case '2croches':{
       const [x1,x2]=[cx-W*.2,cx+W*.2];
       body=hF(x1,NH)+sU(x1,NH,SL*.8)+hF(x2,NH)+sU(x2,NH,SL*.8)+bm(x1,x2,STB);
       break;}
-    case '4croches':{
+    case '4dcroches':{
       const xs=[cx-W*.32,cx-W*.11,cx+W*.1,cx+W*.31];
-      body=xs.map(x=>hF(x,NH)+sU(x,NH,SL*.8)).join('')+bm(xs[0],xs[3],STB);
+      body=xs.map(x=>hF(x,NH)+sU(x,NH,SL*.8)).join('')
+        +bm(xs[0],xs[3],STB)
+        +bm(xs[0],xs[3],STB+8); // 2e ligature = double croche
       break;}
     case 'croche-2dcr':{
       const [x1,x2,x3]=[cx-W*.24,cx,cx+W*.24];
@@ -298,10 +302,11 @@ function svgFig(id, col, W, H){
         +bm(x1,x3,STB)+bm(x2,x3,STB+8);
       break;}
     case 'contretemps':{
-      // demi-pause + croche
-      const lw=W*.32,lh=8,rx=cx-W*.38;
+      // demi-soupir (½ temps) + croche (½ temps) = 1 temps
       const x2=cx+W*.2;
-      body=`<rect x="${rx}" y="${NH-SL*.55-lh}" width="${lw}" height="${lh}" fill="${col}"/>`
+      const glyph=SMUFL['s-croche'];
+      const fs=Math.min(W,H)*.65;
+      body=`<text x="${cx-W*.18}" y="${H*.72}" font-family="Bravura Text,serif" font-size="${fs}" fill="${col}">${glyph}</text>`
         +hF(x2,NH)+sU(x2,NH,SL*.8)+flg(x2,STB);
       break;}
     default: body=`<text x="${cx}" y="${NH}" text-anchor="middle" font-size="18" fill="${col}">?</text>`;
@@ -365,9 +370,10 @@ function playGrp(grp, tAbs){
   const midi=getPianoMidi();
   const events={
     'ronde':[{o:0,d:3.5}],'blanche':[{o:0,d:1.7}],'noire':[{o:0,d:.85}],
+    'croche':[{o:0,d:.4}],
     'blanche-pt':[{o:0,d:2.5}],'noire-pt':[{o:0,d:1.3}],
     '2croches':[{o:0,d:.4},{o:.5,d:.4}],
-    '4croches':[{o:0,d:.2},{o:.25,d:.2},{o:.5,d:.2},{o:.75,d:.2}],
+    '4dcroches':[{o:0,d:.2},{o:.25,d:.2},{o:.5,d:.2},{o:.75,d:.2}],
     'croche-2dcr':[{o:0,d:.4},{o:.5,d:.2},{o:.75,d:.2}],
     'contretemps':[{o:.5,d:.4}],
     's-ronde':[],'s-blanche':[],'s-noire':[],'s-croche':[],

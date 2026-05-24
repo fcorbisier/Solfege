@@ -12,6 +12,10 @@
   src: url('https://cdn.jsdelivr.net/fontsource/fonts/bravura@latest/latin-400-normal.woff2') format('woff2'),
        url('https://cdn.jsdelivr.net/fontsource/fonts/bravura@latest/latin-400-normal.woff') format('woff');
 }
+@font-face {
+  font-family: 'Bravura Text';
+  src: url('https://cdn.jsdelivr.net/fontsource/fonts/bravura-text@latest/latin-400-normal.woff2') format('woff2');
+}
 </style>
 <style>
 :root{--bg:#0e0e12;--surface:#16161e;--surface2:#1e1e2a;--border:#2a2a3a;--accent:#c8a97e;--accent2:#7eb8c8;--text:#e8e4d9;--muted:#6b6880;--success:#7ec87e;--error:#c87e7e;}
@@ -152,7 +156,7 @@ input[type=range]{padding:.2rem 0;accent-color:var(--accent)}
 </div>
 <header>
   <h1>Dictée de Rythme</h1>
-  <p>Steinway Grand Piano · Entraînement à l'oreille rythmique · <span style="color:var(--border)">v3.5</span></p>
+  <p>Steinway Grand Piano · Entraînement à l'oreille rythmique · <span style="color:var(--border)">v3.6</span></p>
 </header>
 <div class="layout">
 
@@ -365,10 +369,10 @@ function svgNote(id, col, W, H) {
   const bm  = (x1,y1,x2,y2,th=4.5) => `<polygon points="${x1},${y1-th/2} ${x2},${y2-th/2} ${x2},${y2+th/2} ${x1},${y1+th/2}" fill="${c}"/>`;
   const dt  = (x,y) => `<circle cx="${x+11}" cy="${y-4}" r="2.4" fill="${c}"/>`;
   // rests
-  const rWhole  = (x,y) => `<text x="${x}" y="${y+8}" text-anchor="middle" font-size="28" font-family="Bravura, serif" fill="${c}">𝄻</text>`;
-  const rHalf   = (x,y) => `<text x="${x}" y="${y+8}" text-anchor="middle" font-size="28" font-family="Bravura, serif" fill="${c}">𝄼</text>`;
-  const rQtr    = (x,y) => `<text x="${x}" y="${y+8}" text-anchor="middle" font-size="28" font-family="Bravura, serif" fill="${c}">𝄽</text>`;
-  const rEth    = (x,y) => `<text x="${x}" y="${y+8}" text-anchor="middle" font-size="28" font-family="Bravura, serif" fill="${c}">𝄾</text>`;
+  const rWhole  = (x,y) => `<text x="${x}" y="${y+8}" text-anchor="middle" font-size="28" font-family="Bravura Text,Bravura,serif" fill="${c}">𝄻</text>`;
+  const rHalf   = (x,y) => `<text x="${x}" y="${y+8}" text-anchor="middle" font-size="28" font-family="Bravura Text,Bravura,serif" fill="${c}">𝄼</text>`;
+  const rQtr    = (x,y) => `<text x="${x}" y="${y+8}" text-anchor="middle" font-size="28" font-family="Bravura Text,Bravura,serif" fill="${c}">𝄽</text>`;
+  const rEth    = (x,y) => `<text x="${x}" y="${y+8}" text-anchor="middle" font-size="28" font-family="Bravura Text,Bravura,serif" fill="${c}">𝄾</text>`;
 
   let body = '';
   const cx = W/2;
@@ -384,10 +388,6 @@ function svgNote(id, col, W, H) {
     case '2croches': {
       const [x1,x2]=[W*.28,W*.68];
       body = hF(x1,NH)+sU(x1,NH,STB)+hF(x2,NH)+sU(x2,NH,STB)+bm(x1+4.5,STB,x2+4.5,STB); break;
-    }
-    case '4croches': {
-      const xs=[W*.15,W*.38,W*.62,W*.85];
-      body = xs.map(x=>hF(x,NH)+sU(x,NH,STB)).join('')+bm(xs[0]+4.5,STB,xs[3]+4.5,STB); break;
     }
     case '4dcr': {
       const xs=[W*.13,W*.38,W*.63,W*.87];
@@ -513,13 +513,13 @@ const GROUPS = [
   {id:'blanche-pt',       beats:3,   cat:'notes',    label:'Blanche pointée',     W:62, events:[{o:0,d:2.8,r:false}]},
   {id:'noire',            beats:1,   cat:'notes',    label:'Noire',               W:40, events:[{o:0,d:.85,r:false}]},
   {id:'noire-pt',         beats:1.5, cat:'notes',    label:'Noire pointée',       W:50, events:[{o:0,d:1.3,r:false}]},
+  {id:'croche',           beats:.5,  cat:'notes',    label:'Croche',              W:40, events:[{o:0,d:.4,r:false}]},
   {id:'2croches',         beats:1,   cat:'groupes',  label:'2 croches',           W:62, events:[{o:0,d:.42,r:false},{o:.5,d:.42,r:false}]},
-  {id:'4croches',         beats:2,   cat:'groupes',  label:'4 croches',           W:78, events:[{o:0,d:.42,r:false},{o:.5,d:.42,r:false},{o:1,d:.42,r:false},{o:1.5,d:.42,r:false}]},
   {id:'4dcr',             beats:1,   cat:'groupes',  label:'4 doubles croches',   W:78, events:[{o:0,d:.2,r:false},{o:.25,d:.2,r:false},{o:.5,d:.2,r:false},{o:.75,d:.2,r:false}]},
   {id:'2dcr',             beats:.5,  cat:'groupes',  label:'2 doubles croches',   W:60, events:[{o:0,d:.2,r:false},{o:.25,d:.2,r:false}]},
   {id:'croche-2dcr',      beats:1,   cat:'groupes',  label:'Croche + 2 doubles',  W:72, events:[{o:0,d:.42,r:false},{o:.5,d:.2,r:false},{o:.75,d:.2,r:false}]},
-  {id:'croche-noire-croche',beats:2, cat:'syncopes', label:'Croche-noire-croche', W:78, events:[{o:0,d:.42,r:false},{o:.5,d:.85,r:false},{o:1.5,d:.42,r:false}]},
   {id:'contretemps',      beats:1,   cat:'syncopes', label:'Contretemps (𝄾+♪)',   W:70, events:[{o:0,d:0,r:true},{o:.5,d:.42,r:false}]},
+  {id:'croche-noire-croche',beats:2, cat:'syncopes', label:'Croche-noire-croche', W:78, events:[{o:0,d:.42,r:false},{o:.5,d:.85,r:false},{o:1.5,d:.42,r:false}]},
   {id:'noire-2croches',   beats:2,   cat:'syncopes', label:'Noire + 2 croches',   W:78, events:[{o:0,d:.85,r:false},{o:1,d:.42,r:false},{o:1.5,d:.42,r:false}]},
   {id:'2croches-noire',   beats:2,   cat:'syncopes', label:'2 croches + noire',   W:78, events:[{o:0,d:.42,r:false},{o:.5,d:.42,r:false},{o:1,d:.85,r:false}]},
   {id:'s-ronde',          beats:4,   cat:'silences', label:'Pause',               W:48, events:[{o:0,d:0,r:true}]},
@@ -527,15 +527,12 @@ const GROUPS = [
   {id:'s-noire',          beats:1,   cat:'silences', label:'Soupir',              W:38, events:[{o:0,d:0,r:true}]},
   {id:'s-croche',         beats:.5,  cat:'silences', label:'Demi-soupir',         W:36, events:[{o:0,d:0,r:true}]},
   // ── AVANCÉS ── (désactivés par défaut)
-  // Triolets
   {id:'triolet-noires',   beats:2,   cat:'triolets', label:'Triolet de noires',   W:78, events:[{o:0,d:.6,r:false},{o:2/3,d:.6,r:false},{o:4/3,d:.6,r:false}]},
   {id:'triolet-croches',  beats:1,   cat:'triolets', label:'Triolet de croches',  W:72, events:[{o:0,d:.3,r:false},{o:1/3,d:.3,r:false},{o:2/3,d:.3,r:false}]},
-  // Rythmes pointés avancés
   {id:'pointe-noire-croche',beats:2, cat:'avances',  label:'Noire pt + croche',   W:72, events:[{o:0,d:1.3,r:false},{o:1.5,d:.4,r:false}]},
   {id:'croche-noire-pointe',beats:2, cat:'avances',  label:'Croche + noire pt',   W:72, events:[{o:0,d:.4,r:false},{o:.5,d:1.3,r:false}]},
   {id:'dcr-croche-dcr',   beats:1,   cat:'avances',  label:'Dcr + croche + dcr',  W:72, events:[{o:0,d:.18,r:false},{o:.25,d:.4,r:false},{o:.75,d:.18,r:false}]},
   {id:'syncope',          beats:2,   cat:'avances',  label:'Syncope',             W:78, events:[{o:0,d:.4,r:false},{o:.5,d:.85,r:false},{o:1.5,d:.4,r:false}]},
-  // Silences avancés
   {id:'s-noire-pt',       beats:1.5, cat:'avances',  label:'Soupir pointé + ½s', W:60, events:[{o:0,d:0,r:true},{o:1,d:0,r:true}]},
   {id:'noire-2pt',        beats:1.75,cat:'avances',  label:'Noire double pointée',W:56, events:[{o:0,d:1.7,r:false}]},
 ];
@@ -547,7 +544,7 @@ const CATS=[
   {id:'triolets', label:'Triolets'},
   {id:'avances',  label:'Figures avancées'},
 ];
-const DEFAULT_ON=new Set(['noire','blanche','2croches','4dcr','croche-2dcr','contretemps','s-noire']);
+const DEFAULT_ON=new Set(['noire','croche','blanche','2croches','4dcr','croche-2dcr','contretemps','s-noire']);
 
 // ═══════════════════════════════════════════════════════════
 // STATE
