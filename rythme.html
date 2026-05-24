@@ -9,7 +9,9 @@
 <style>
 @font-face{
   font-family:'Bravura Text';
-  src:url('https://cdn.jsdelivr.net/fontsource/fonts/bravura-text@latest/latin-400-normal.woff2') format('woff2');
+  /* woff2 a un bug cmap sur Chrome — on utilise woff en priorité */
+  src:url('https://cdn.jsdelivr.net/fontsource/fonts/bravura-text@latest/latin-400-normal.woff') format('woff'),
+      url('https://cdn.jsdelivr.net/fontsource/fonts/bravura-text@latest/latin-400-normal.woff2') format('woff2');
   font-display:swap;
 }
 :root{--bg:#0e0e12;--surface:#16161e;--surface2:#1e1e2a;--border:#2a2a3a;--accent:#c8a97e;--accent2:#7eb8c8;--text:#e8e4d9;--muted:#6b6880;--success:#7ec87e;--error:#c87e7e}
@@ -720,11 +722,45 @@ function playRhythm(){
   document.getElementById('play-ind').classList.add('on');
   document.getElementById('btn-play').disabled=true;
 
-  // Utiliser Tone.now() comme référence unique pour metro ET notes
   const tNow=Tone.now();
   let t=tNow+.2;
+
+  // === TRACES TIMING ===
+  console.group('🎵 playRhythm — timing audit');
+  console.log(`ac.currentTime = ${ac.currentTime.toFixed(4)}`);
+  console.log(`Tone.now()     = ${tNow.toFixed(4)}`);
+  console.log(`Offset Tone-AC = ${(tNow-ac.currentTime).toFixed(4)}s`);
+  console.log(`beat           = ${beat.toFixed(4)}s`);
+
   for(let i=0;i<meter;i++){clickT(t,i===0);t+=beat;}
   const seqStart=t;
+  console.log(`seqStart (Tone)= ${seqStart.toFixed(4)}`);
+
+  const total=currentSeq.reduce((s,id)=>s+(G(id)?.beats||0),0);
+
+  if(document.getElementById('metro-on').checked){
+    const totalBeats=currentSeq.reduce((s,id)=>s+(G(id)?.beats||0),0);
+    for(let b=0;b<totalBeats;b++){
+      const tClick=seqStart+b*beat;
+      if(b<4) console.log(`  Metro beat ${b} = ${tClick.toFixed(4)} (Tone)`);
+      clickT(tClick, b%meter===0);
+    }
+  }
+
+  let cursor=0;
+  currentSeq.forEach((id,i)=>{
+    const grp=G(id);
+    const tNote=seqStart+cursor*beat;
+    if(i<4) console.log(`  Note[${i}] "${id}" = ${tNote.toFixed(4)} (Tone) | diff metro = ${(tNote-(seqStart+cursor*beat)).toFixed(4)}s`);
+    const delayMs=(tNote-tNow)*1000;
+    setTimeout(()=>{
+      document.querySelectorAll('.ncell').forEach(e=>e.style.opacity='');
+      const cell=document.getElementById('nc-'+i);if(cell)cell.style.opacity='1';
+    },delayMs);
+    playGrpT(grp, tNote);
+    cursor+=grp.beats;
+  });
+  console.groupEnd();
   const total=currentSeq.reduce((s,id)=>s+(G(id)?.beats||0),0);
 
   if(document.getElementById('metro-on').checked){

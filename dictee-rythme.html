@@ -14,7 +14,9 @@
 }
 @font-face {
   font-family: 'Bravura Text';
-  src: url('https://cdn.jsdelivr.net/fontsource/fonts/bravura-text@latest/latin-400-normal.woff2') format('woff2');
+  /* woff2 a un bug cmap sur Chrome — woff en priorité */
+  src: url('https://cdn.jsdelivr.net/fontsource/fonts/bravura-text@latest/latin-400-normal.woff') format('woff'),
+       url('https://cdn.jsdelivr.net/fontsource/fonts/bravura-text@latest/latin-400-normal.woff2') format('woff2');
 }
 
 /* ── Thème clair ──────────────────────────────────────────────────────── */
