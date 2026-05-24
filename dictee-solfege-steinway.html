@@ -162,20 +162,6 @@ body.light .staff-wrap,.light .staff-container{background:#fff!important;border-
 </head>
 <body>
 
-<!-- Splash audio mobile -->
-<div id="audio-splash" style="display:none;position:fixed;inset:0;background:rgba(14,14,18,.97);
-  z-index:500;flex-direction:column;align-items:center;justify-content:center;gap:1.5rem;padding:2rem">
-  <div style="font-size:3rem">🎹</div>
-  <div style="font-family:'Playfair Display',serif;font-size:1.4rem;color:var(--accent);text-align:center">
-    Appuyez pour activer le son
-  </div>
-  <button id="audio-splash-btn" style="padding:.9rem 2rem;border-radius:10px;border:2px solid var(--accent);
-    background:var(--accent);color:var(--bg);font-family:'DM Mono',monospace;font-size:1rem;
-    font-weight:600;cursor:pointer;letter-spacing:.05em">
-    ▶ Démarrer
-  </button>
-</div>
-
 <button id="theme-btn" title="Thème clair/sombre">☀️</button>
 
 <div id="loading" style="display:none">
@@ -1253,7 +1239,6 @@ updateScore();
 let _ToneLoaded = false;
 async function loadTone() {
   if (_ToneLoaded) return;
-  if (window.Tone) { _ToneLoaded = true; return; } // déjà chargé par splash
   await new Promise((resolve, reject) => {
     const s = document.createElement('script');
     s.src = 'https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js';
@@ -1261,9 +1246,6 @@ async function loadTone() {
     document.head.appendChild(s);
   });
   _ToneLoaded = true;
-  if (window._iosAC && window.Tone) {
-    try { Tone.setContext(new Tone.Context(window._iosAC)); } catch(e) {}
-  }
 }
 
 let samplerReady = false;
@@ -1387,51 +1369,6 @@ document.addEventListener('input', e => {
   if (e.target.type === 'range') saveConfig();
 });
 
-// ── Activation audio mobile (iOS/Android) ──────────────────────────
-(function(){
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-  const splash = document.getElementById('audio-splash');
-  if(!splash) return;
-
-  // Afficher sur mobile ET sur desktop si l'audio n'est pas encore prêt
-  splash.style.display = 'flex';
-
-  document.getElementById('audio-splash-btn').addEventListener('click', function(){
-    splash.style.display = 'none';
-    // iOS EXIGE que l'AudioContext soit créé/repris SYNCHRONEMENT dans le tap
-    // Pas de await, pas de Promise avant — tout synchrone
-    try {
-      window._iosAC = new (window.AudioContext || window.webkitAudioContext)();
-      window._iosAC.resume(); // synchrone, pas de await
-    } catch(e) { console.warn('AC init', e); }
-    // Jouer un son silencieux pour débloquer iOS
-    try {
-      const buf = window._iosAC.createBuffer(1, 1, 22050);
-      const src = window._iosAC.createBufferSource();
-      src.buffer = buf;
-      src.connect(window._iosAC.destination);
-      src.start(0);
-    } catch(e) {}
-    // Charger Tone.js ensuite (peut être async maintenant que l'AC est débloqué)
-    if(!window.Tone) {
-      const s = document.createElement('script');
-      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js';
-      s.onload = function() {
-        // Injecter notre AudioContext dans Tone.js
-        try {
-          Tone.setContext(new Tone.Context(window._iosAC));
-        } catch(e) {
-          try { Tone.start(); } catch(e2) {}
-        }
-      };
-      document.head.appendChild(s);
-    } else {
-      try { Tone.setContext(new Tone.Context(window._iosAC)); } catch(e) {
-        try { Tone.start(); } catch(e2) {}
-      }
-    }
-  }, {once: true});
-})();
 </script>
 </body>
 </html>
