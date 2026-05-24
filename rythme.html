@@ -682,26 +682,49 @@ function playRhythm(){
   document.getElementById('play-ind').classList.add('on');
   document.getElementById('btn-play').disabled=true;
   let t=ac.currentTime+.2;
-  // Mesure d'intro — le dernier click de l'intro tombe juste avant seqStart
+
+  // === TRACES TIMING ===
+  console.group('🎵 playRhythm — timing audit');
+  console.log(`ac.currentTime   = ${ac.currentTime.toFixed(4)}`);
+  console.log(`Tone.now()       = ${Tone.now().toFixed(4)}`);
+  console.log(`Offset Tone-AC   = ${(Tone.now()-ac.currentTime).toFixed(4)}s`);
+  console.log(`beat             = ${beat.toFixed(4)}s`);
+  console.log(`t0 (intro start) = ${t.toFixed(4)}`);
+
   for(let i=0;i<meter;i++){click(t,i===0);t+=beat;}
-  const seqStart=t; // seqStart tombe exactement sur le prochain temps fort
+  const seqStart=t;
+  console.log(`seqStart         = ${seqStart.toFixed(4)} (ac)`);
+
   const total=currentSeq.reduce((s,id)=>s+(G(id)?.beats||0),0);
-  // Métronome continu pendant la séquence (si activé)
+
   if(document.getElementById('metro-on').checked){
     const totalBeats=currentSeq.reduce((s,id)=>s+(G(id)?.beats||0),0);
     for(let b=0;b<totalBeats;b++){
-      click(seqStart+b*beat, b%meter===0);
+      const tClick=seqStart+b*beat;
+      if(b<4) console.log(`  Metro beat ${b}   = ${tClick.toFixed(4)} (ac)`);
+      click(tClick, b%meter===0);
     }
   }
+
+  let cursor=0;
   currentSeq.forEach((id,i)=>{
     const grp=G(id);
-    const delay=(seqStart+currentSeq.slice(0,i).reduce((s,x)=>s+(G(x)?.beats||0),0)*beat-ac.currentTime)*1000;
+    const tNote=seqStart+cursor*beat;
+    // Trace pour les 4 premières figures
+    if(i<4){
+      const toneEquiv=Tone.now()+(tNote-ac.currentTime);
+      console.log(`  Note[${i}] "${id}" : ac=${tNote.toFixed(4)} | Tone.now+offset=${toneEquiv.toFixed(4)} | diff=${(toneEquiv-tNote).toFixed(4)}s`);
+    }
+    const delay=(tNote-ac.currentTime)*1000;
     setTimeout(()=>{
       document.querySelectorAll('.ncell').forEach(e=>e.style.opacity='');
       const cell=document.getElementById('nc-'+i);if(cell)cell.style.opacity='1';
     },delay);
-    playGrp(grp,seqStart+currentSeq.slice(0,i).reduce((s,x)=>s+(G(x)?.beats||0),0)*beat);
+    playGrp(grp,tNote);
+    cursor+=grp.beats;
   });
+  console.groupEnd();
+
   setTimeout(()=>{
     document.querySelectorAll('.ncell').forEach(e=>e.style.opacity='');
     document.getElementById('play-ind').classList.remove('on');
