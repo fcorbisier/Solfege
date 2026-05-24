@@ -657,10 +657,25 @@ async function generate(){
   const meter=getMeter(), bars=getBars(), active=activeGroups();
   const target=meter*bars;
   if(!active.filter(g=>g.cat!=='s').length){alert('Activez au moins une figure non-silence.');return;}
+
+  // Silences de remplissage disponibles (toujours présents même si non activés)
+  const FILL_SILENCES=[
+    {id:'s-blanche',beats:2},{id:'s-noire',beats:1},{id:'s-croche',beats:.5}
+  ];
+
   const seq=[];let total=0;
   while(total<target-.001){
     const maxFit=target-total;
-    const pool=active.filter(g=>g.beats<=maxFit+.001);if(!pool.length)break;
+    const pool=active.filter(g=>g.beats<=maxFit+.001);
+    if(!pool.length){
+      // Aucune figure active ne rentre — compléter avec des silences
+      const fillPool=FILL_SILENCES.filter(s=>s.beats<=maxFit+.001);
+      if(!fillPool.length)break; // ne devrait pas arriver (s-croche=0.5)
+      // Prendre le plus grand silence qui rentre
+      const fill=fillPool.reduce((a,b)=>b.beats>a.beats?b:a);
+      seq.push(fill.id);total+=fill.beats;
+      continue;
+    }
     const pick=pool[Math.floor(Math.random()*pool.length)];
     seq.push(pick.id);total+=pick.beats;
   }
@@ -772,8 +787,8 @@ function testAns(){
   });
 }
 function addAns(id){
-  const target=getMeter()*getBars();
-  if(totalB(userAns)+(G(id)?.beats||0)>target+.001)return;
+  const actual=currentSeq.length?totalB(currentSeq):getMeter()*getBars();
+  if(totalB(userAns)+(G(id)?.beats||0)>actual+.001)return;
   userAns.push(id);renderAns(null);
   // Feedback audio
   if(ready){
@@ -799,9 +814,9 @@ function undoAns(){userAns.pop();renderAns(null);}
 
 function check(){
   if(!currentSeq.length)return;
-  const target=getMeter()*getBars();
-  if(Math.abs(totalB(userAns)-target)>.001){
-    showResult(false,`Total : ${totalB(userAns)} temps, ${target} attendus.`);return;
+  const actual=totalB(currentSeq); // total réellement généré
+  if(Math.abs(totalB(userAns)-actual)>.001){
+    showResult(false,`Total : ${totalB(userAns)} temps, ${actual} attendus.`);return;
   }
   const res=currentSeq.map((id,i)=>id===userAns[i]);
   const ok=res.every(Boolean)&&userAns.length===currentSeq.length;

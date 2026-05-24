@@ -1106,14 +1106,29 @@ async function generate(){
   await resumeAudio();
   const meter=getMeter(),bars=getBars(),active=activeGroups(),target=meter*bars;
   if(!active.filter(g=>g.cat!=='silences').length){alert('Activez au moins une figure !');return;}
+
+  const FILL_SILENCES=[
+    {id:'s-blanche',beats:2,cat:'silences',events:[{o:0,d:0,r:true}]},
+    {id:'s-noire',  beats:1,cat:'silences',events:[{o:0,d:0,r:true}]},
+    {id:'s-croche', beats:.5,cat:'silences',events:[{o:0,d:0,r:true}]},
+  ];
+
   const seq=[];let bb=0,total=0;
   while(total<target-.001){
     const inBar=meter-bb,maxFit=Math.min(target-total,inBar);
-    const pool=active.filter(g=>g.beats<=maxFit+.001);if(!pool.length)break;
+    const pool=active.filter(g=>g.beats<=maxFit+.001);
+    if(!pool.length){
+      // Compléter avec le plus grand silence qui rentre
+      const fillPool=FILL_SILENCES.filter(s=>s.beats<=maxFit+.001);
+      if(!fillPool.length)break;
+      const fill=fillPool.reduce((a,b)=>b.beats>a.beats?b:a);
+      seq.push(fill.id);total+=fill.beats;bb+=fill.beats;
+      if(Math.abs(bb-meter)<.001)bb=0;else if(bb>meter)bb=bb%meter;
+      continue;
+    }
     const lastCat=seq.length?G(seq[seq.length-1])?.cat:null;
-    // Filtrer silences consécutifs puis tirer selon les poids de répétition espacée
-    const poolFiltered = pool.filter(g => !(g.cat==='silences' && lastCat==='silences'));
-    const pick = weightedPickFig(poolFiltered.length ? poolFiltered : pool);
+    const poolFiltered=pool.filter(g=>!(g.cat==='silences'&&lastCat==='silences'));
+    const pick=weightedPickFig(poolFiltered.length?poolFiltered:pool);
     seq.push(pick.id);total+=pick.beats;bb+=pick.beats;
     if(Math.abs(bb-meter)<.001)bb=0;else if(bb>meter)bb=bb%meter;
   }

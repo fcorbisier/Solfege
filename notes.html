@@ -311,12 +311,12 @@ const DURS = [
 
 // Offsets et durées pour chaque note dans la figure
 const DUR_EVENTS = {
-  'blanche':   [{o:0,    tone:'2n'}],
-  'noire':     [{o:0,    tone:'4n'}],
-  'noire-pt':  [{o:0,    tone:'4n.'}],
-  'croche':    [{o:0,    tone:'8n'}],
-  '2croches':  [{o:0,    tone:'8n'}, {o:.5,  tone:'8n'}],
-  '4dcr':      [{o:0,    tone:'16n'},{o:.25, tone:'16n'},{o:.5, tone:'16n'},{o:.75,tone:'16n'}],
+  'blanche':   [{o:0,    dur:1.85}],                                              // 2 beats × 0.92
+  'noire':     [{o:0,    dur:0.85}],                                              // 1 beat  × 0.85
+  'noire-pt':  [{o:0,    dur:1.30}],                                              // 1.5 beats × 0.87
+  'croche':    [{o:0,    dur:0.42}],                                              // 0.5 beat × 0.85
+  '2croches':  [{o:0,    dur:0.42}, {o:.5,   dur:0.42}],                         // 2×croche
+  '4dcr':      [{o:0,    dur:0.20}, {o:.25,  dur:0.20}, {o:.5, dur:0.20}, {o:.75, dur:0.20}], // 4×double
 };
 
 function randDur(){
@@ -578,11 +578,11 @@ function playSeq(){
     seq.forEach((note,i)=>{
       const item=melodyDurs[i];
       const durId=item.durId||'noire';
-      const events=DUR_EVENTS[durId]||[{o:0,tone:'4n'}];
+      const events=DUR_EVENTS[durId]||[{o:0,dur:0.85}];
       const ev=events[item.noteIdx]||events[0];
       const tNote=t0+(cursor+ev.o)*beat;
       const midi=NOTE_MAP[note]?.[oct];
-      if(midi) sampler.triggerAttackRelease(midi, ev.tone, tNote);
+      if(midi) sampler.triggerAttackRelease(midi, ev.dur*beat, tNote);
       // Highlight à l'instant précis de cette note
       setTimeout(()=>hlNote(i),(tNote-ac.currentTime)*1000);
       // Avancer le curseur seulement à la fin du groupe
@@ -631,10 +631,10 @@ function testAns(){
       const item=melodyDurs[i];
       if(!item){const midi=NOTE_MAP[note]?.[oct];if(midi)sampler.triggerAttackRelease(midi,'4n',t0+cursor*beat);cursor+=1;return;}
       const durId=item.durId||'noire';
-      const events=DUR_EVENTS[durId]||[{o:0,tone:'4n'}];
+      const events=DUR_EVENTS[durId]||[{o:0,dur:0.85}];
       const ev=events[item.noteIdx]||events[0];
       const midi=NOTE_MAP[note]?.[oct];
-      if(midi) sampler.triggerAttackRelease(midi, ev.tone, t0+(cursor+ev.o)*beat);
+      if(midi) sampler.triggerAttackRelease(midi, ev.dur*beat, t0+(cursor+ev.o)*beat);
       if(item.noteIdx===item.groupSize-1){
         const dur=DURS.find(d=>d.id===durId)||DURS[1];
         cursor+=dur.beats;
