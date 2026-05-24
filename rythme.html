@@ -362,19 +362,21 @@ function svgFig(id, col, W, H){
 
   // Pour les notes : dessiner avec SVG (plus de contrôle sur hampes et ligatures)
   const NH=H*.62;
-  const hF=(x,y)=>`<ellipse cx="${x}" cy="${y}" rx="${W*.16}" ry="${W*.11}" transform="rotate(-20,${x},${y})" fill="${col}"/>`;
-  const hO=(x,y)=>`<ellipse cx="${x}" cy="${y}" rx="${W*.16}" ry="${W*.11}" transform="rotate(-20,${x},${y})" fill="none" stroke="${col}" stroke-width="1.7"/>`;
-  const sU=(x,y,len)=>`<line x1="${x+W*.14}" y1="${y-2}" x2="${x+W*.14}" y2="${y-len}" stroke="${col}" stroke-width="1.6"/>`;
-  const bm=(x1,x2,y)=>`<line x1="${x1+W*.14}" y1="${y}" x2="${x2+W*.14}" y2="${y}" stroke="${col}" stroke-width="2.8"/>`;
-  const flg=(x,top)=>`<path d="M${x+W*.14},${top} C${x+W*.38},${top+7} ${x+W*.38},${top+14} ${x+W*.14},${top+20}" fill="none" stroke="${col}" stroke-width="1.6" stroke-linecap="round"/>`;
-  const dt=(x,y)=>`<circle cx="${x+W*.34}" cy="${y-3}" r="2.2" fill="${col}"/>`;
-  const SL=H*.42; // longueur hampe
+  // Taille de tête ABSOLUE — même taille visuelle quelle que soit la figure
+  const RX=6.5, RY=4.5; // rayons fixes en pixels absolus
+  const hF=(x,y)=>`<ellipse cx="${x}" cy="${y}" rx="${RX}" ry="${RY}" transform="rotate(-20,${x},${y})" fill="${col}"/>`;
+  const hO=(x,y)=>`<ellipse cx="${x}" cy="${y}" rx="${RX}" ry="${RY}" transform="rotate(-20,${x},${y})" fill="none" stroke="${col}" stroke-width="1.7"/>`;
+  const sU=(x,y,len)=>`<line x1="${x+RX*.85}" y1="${y-2}" x2="${x+RX*.85}" y2="${y-len}" stroke="${col}" stroke-width="1.6"/>`;
+  const bm=(x1,x2,y)=>`<line x1="${x1+RX*.85}" y1="${y}" x2="${x2+RX*.85}" y2="${y}" stroke="${col}" stroke-width="2.8"/>`;
+  const flg=(x,top)=>`<path d="M${x+RX*.85},${top} C${x+RX*2.5},${top+7} ${x+RX*2.5},${top+14} ${x+RX*.85},${top+20}" fill="none" stroke="${col}" stroke-width="1.6" stroke-linecap="round"/>`;
+  const dt=(x,y)=>`<circle cx="${x+RX*2.2}" cy="${y-3}" r="2.2" fill="${col}"/>`;
+  const SL=H*.42;
   const STB=NH-SL*.8;
 
   let body='';
   switch(id){
     case 'ronde':
-      body=hO(cx,NH)+`<ellipse cx="${cx+W*.04}" cy="${NH}" rx="${W*.07}" ry="${W*.055}" transform="rotate(-20,${cx},${NH})" fill="${col}"/>`;
+      body=hO(cx,NH)+`<ellipse cx="${cx+RX*.5}" cy="${NH}" rx="${RX*.45}" ry="${RY*.45}" transform="rotate(-20,${cx},${NH})" fill="${col}"/>`;
       break;
     case 'blanche':   body=hO(cx,NH)+sU(cx,NH,SL); break;
     case 'blanche-pt':body=hO(cx,NH)+sU(cx,NH,SL)+dt(cx,NH); break;
@@ -410,8 +412,9 @@ function svgFig(id, col, W, H){
 }
 
 function qSVG(W,H){
+  // Toujours la même boule floue — taille fixe pour ne pas révéler la figure
   return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
-    <ellipse cx="${W/2}" cy="${H*.55}" rx="${W*.14}" ry="${W*.1}" transform="rotate(-15,${W/2},${H*.55})" fill="var(--muted)" opacity=".2"/>
+    <ellipse cx="${W/2}" cy="${H*.62}" rx="6.5" ry="4.5" transform="rotate(-20,${W/2},${H*.62})" fill="var(--muted)" opacity=".2" filter="url(#note-blur)"/>
   </svg>`;
 }
 
@@ -612,10 +615,10 @@ function buildToggles(){
       btn.style.cssText=`display:flex;flex-direction:column;align-items:center;gap:.2rem;
         padding:.25rem .35rem;border-radius:6px;border:1.5px solid ${on?'var(--accent)':'var(--border)'};
         cursor:pointer;font-size:.48rem;color:${on?'var(--accent)':'var(--muted)'};
-        transition:all .12s;min-width:38px;text-align:center;user-select:none`;
+        transition:all .12s;min-width:54px;text-align:center;user-select:none`;
       btn.id='tog-'+grp.id;
       btn.dataset.checked=on?'1':'0';
-      btn.innerHTML=svgFig(grp.id,col,32,44)+`<span>${grp.label}</span>`;
+      btn.innerHTML=svgFig(grp.id,col,54,48)+`<span>${grp.label}</span>`;
       btn.onclick=()=>{
         const nowOn=btn.dataset.checked==='1';
         btn.dataset.checked=nowOn?'0':'1';
@@ -641,7 +644,7 @@ function buildFigKbd(){
     active.forEach(grp=>{
       const col=grp.cat==='s'?'var(--accent2)':'var(--text)';
       const b=document.createElement('button');b.className='fkb';
-      b.innerHTML=svgFig(grp.id,col,34,46)+`<span class="albl">${grp.label}</span>`;
+      b.innerHTML=svgFig(grp.id,col,54,50)+`<span class="albl">${grp.label}</span>`;
       b.onclick=()=>addAns(grp.id);el.appendChild(b);
     });
   });
