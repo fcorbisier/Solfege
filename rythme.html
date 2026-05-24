@@ -7,6 +7,11 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🥁</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
+@font-face{
+  font-family:'Bravura Text';
+  src:url('https://cdn.jsdelivr.net/fontsource/fonts/bravura-text@latest/latin-400-normal.woff2') format('woff2');
+  font-display:swap;
+}
 :root{--bg:#0e0e12;--surface:#16161e;--surface2:#1e1e2a;--border:#2a2a3a;--accent:#c8a97e;--accent2:#7eb8c8;--text:#e8e4d9;--muted:#6b6880;--success:#7ec87e;--error:#c87e7e}
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;min-height:100vh;
@@ -226,47 +231,79 @@ const GROUPS=[
 const DEFAULT_ON=new Set(['noire','2croches','4croches','contretemps','s-noire']);
 function G(id){return GROUPS.find(g=>g.id===id);}
 
-// ═══ SVG FIGURES ═══════════════════════════
+// ═══ SVG FIGURES — Police Bravura Text (SMuFL) ═════
+// Glyphes SMuFL unicode pour chaque figure
+const SMUFL = {
+  // Notes
+  'ronde':      '\uD834\uDD5D', // 𝅝 noteWhole
+  'blanche':    '\uD834\uDD58\uD834\uDD65', // 𝅘𝅥 noteHalfUp
+  'noire':      '\uD834\uDD58\uD834\uDD65', // même tête, hampe différente
+  'noire-pt':   '\uD834\uDD58\uD834\uDD65',
+  'blanche-pt': '\uD834\uDD58\uD834\uDD65',
+  '2croches':   '\uD834\uDD58\uD834\uDD65',
+  '4croches':   '\uD834\uDD58\uD834\uDD65',
+  'croche-2dcr':'\uD834\uDD58\uD834\uDD65',
+  'contretemps':'\uD834\uDD58\uD834\uDD65',
+  // Silences
+  's-ronde':    '\uD834\uDD3B', // 𝄻 restWhole
+  's-blanche':  '\uD834\uDD3C', // 𝄼 restHalf
+  's-noire':    '\uD834\uDD3D', // 𝄽 restQuarter
+  's-croche':   '\uD834\uDD3E', // 𝄾 rest8th
+};
+
 function svgFig(id, col, W, H){
-  const cx=W/2, NH=H*.55;
-  const ST=NH-36, STB=NH-28;
-  const hF=(x,y)=>`<ellipse cx="${x}" cy="${y}" rx="${W*.14}" ry="${W*.1}" transform="rotate(-15,${x},${y})" fill="${col}"/>`;
-  const hO=(x,y)=>`<ellipse cx="${x}" cy="${y}" rx="${W*.14}" ry="${W*.1}" transform="rotate(-15,${x},${y})" fill="none" stroke="${col}" stroke-width="1.8"/>`;
-  const sU=(x,y,t)=>`<line x1="${x+W*.07}" y1="${y}" x2="${x+W*.07}" y2="${t}" stroke="${col}" stroke-width="1.5"/>`;
-  const sD=(x,y,t)=>`<line x1="${x-W*.07}" y1="${y}" x2="${x-W*.07}" y2="${t}" stroke="${col}" stroke-width="1.5"/>`;
-  const flg=(x,t)=>`<path d="M${x+W*.07},${t} C${x+W*.25},${t+8} ${x+W*.25},${t+14} ${x+W*.07},${t+18}" fill="none" stroke="${col}" stroke-width="1.5"/>`;
-  const bm=(x1,y1,x2,y2)=>`<line x1="${x1+W*.07}" y1="${y1}" x2="${x2+W*.07}" y2="${y2}" stroke="${col}" stroke-width="2.5"/>`;
-  const dt=(x,y)=>`<circle cx="${x+W*.22}" cy="${y-4}" r="2.2" fill="${col}"/>`;
-  const rQtr=(x,y)=>{ // soupir
-    const s=W*.13;
-    return `<path d="M${x-s},${y-s*2} Q${x+s*1.5},${y-s*3} ${x},${y-s} Q${x-s*1.5},${y+s} ${x},${y+s*2}" fill="none" stroke="${col}" stroke-width="1.8" stroke-linecap="round"/>
-      <circle cx="${x}" cy="${y+s*2.5}" r="${s*.6}" fill="${col}"/>`;
-  };
-  const rHalf=(x,y)=>`<rect x="${x-W*.18}" y="${y-6}" width="${W*.36}" height="8" fill="${col}"/>`;
-  const rWhole=(x,y)=>`<rect x="${x-W*.2}" y="${y}" width="${W*.4}" height="7" fill="${col}"/>`;
-  const rEth=(x,y)=>`<path d="M${x},${y} Q${x+W*.18},${y-W*.12} ${x+W*.1},${y+W*.06}" fill="none" stroke="${col}" stroke-width="1.6" stroke-linecap="round"/>`;
+  const cx=W/2;
+  const fs=Math.min(W,H)*.75; // taille de police adaptée
+
+  // Pour les silences : utiliser le glyphe Bravura directement
+  if(id.startsWith('s-')){
+    const glyph=SMUFL[id]||'?';
+    return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+      <text x="${cx}" y="${H*.68}" text-anchor="middle" dominant-baseline="middle"
+        font-family="Bravura Text,Bravura,serif" font-size="${fs}" fill="${col}">${glyph}</text>
+    </svg>`;
+  }
+
+  // Pour les notes : dessiner avec SVG (plus de contrôle sur hampes et ligatures)
+  const NH=H*.62;
+  const hF=(x,y)=>`<ellipse cx="${x}" cy="${y}" rx="${W*.16}" ry="${W*.11}" transform="rotate(-20,${x},${y})" fill="${col}"/>`;
+  const hO=(x,y)=>`<ellipse cx="${x}" cy="${y}" rx="${W*.16}" ry="${W*.11}" transform="rotate(-20,${x},${y})" fill="none" stroke="${col}" stroke-width="1.7"/>`;
+  const sU=(x,y,len)=>`<line x1="${x+W*.14}" y1="${y-2}" x2="${x+W*.14}" y2="${y-len}" stroke="${col}" stroke-width="1.6"/>`;
+  const bm=(x1,x2,y)=>`<line x1="${x1+W*.14}" y1="${y}" x2="${x2+W*.14}" y2="${y}" stroke="${col}" stroke-width="2.8"/>`;
+  const flg=(x,top)=>`<path d="M${x+W*.14},${top} C${x+W*.38},${top+7} ${x+W*.38},${top+14} ${x+W*.14},${top+20}" fill="none" stroke="${col}" stroke-width="1.6" stroke-linecap="round"/>`;
+  const dt=(x,y)=>`<circle cx="${x+W*.34}" cy="${y-3}" r="2.2" fill="${col}"/>`;
+  const SL=H*.42; // longueur hampe
+  const STB=NH-SL*.8;
 
   let body='';
   switch(id){
-    case 'ronde':    body=hO(cx,NH)+`<ellipse cx="${cx}" cy="${NH}" rx="${W*.07}" ry="${W*.05}" transform="rotate(-15,${cx},${NH})" fill="${col}"/>`; break;
-    case 'blanche':  body=hO(cx,NH)+sU(cx,NH,ST); break;
-    case 'blanche-pt': body=hO(cx,NH)+sU(cx,NH,ST)+dt(cx,NH); break;
-    case 'noire':    body=hF(cx,NH)+sU(cx,NH,ST); break;
-    case 'noire-pt': body=hF(cx,NH)+sU(cx,NH,ST)+dt(cx,NH); break;
-    case '2croches':{ const [x1,x2]=[cx-W*.2,cx+W*.2];
-      body=hF(x1,NH)+sU(x1,NH,STB)+hF(x2,NH)+sU(x2,NH,STB)+bm(x1,STB,x2,STB); break;}
-    case '4croches':{ const xs=[cx-W*.32,cx-W*.11,cx+W*.11,cx+W*.32];
-      body=xs.map(x=>hF(x,NH)+sU(x,NH,STB)).join('')+bm(xs[0],STB,xs[3],STB); break;}
-    case 'croche-2dcr':{ const [x1,x2,x3]=[cx-W*.22,cx,cx+W*.22];
-      body=hF(x1,NH)+sU(x1,NH,STB)+hF(x2,NH)+sU(x2,NH,STB)+hF(x3,NH)+sU(x3,NH,STB)
-        +bm(x1,STB,x3,STB)+bm(x2,STB,x3,STB); break;}
-    case 'contretemps':{ const [x1,x2]=[cx-W*.15,cx+W*.15];
-      body=`<rect x="${x1-W*.16}" y="${NH-6}" width="${W*.32}" height="7" fill="${col}"/>`
-        +hF(x2,NH)+sU(x2,NH,STB)+flg(x2,STB); break;}
-    case 's-ronde':  body=rWhole(cx,NH); break;
-    case 's-blanche':body=rHalf(cx,NH); break;
-    case 's-noire':  body=rQtr(cx,NH); break;
-    case 's-croche': body=rEth(cx,NH); break;
+    case 'ronde':
+      body=hO(cx,NH)+`<ellipse cx="${cx+W*.04}" cy="${NH}" rx="${W*.07}" ry="${W*.055}" transform="rotate(-20,${cx},${NH})" fill="${col}"/>`;
+      break;
+    case 'blanche':   body=hO(cx,NH)+sU(cx,NH,SL); break;
+    case 'blanche-pt':body=hO(cx,NH)+sU(cx,NH,SL)+dt(cx,NH); break;
+    case 'noire':     body=hF(cx,NH)+sU(cx,NH,SL); break;
+    case 'noire-pt':  body=hF(cx,NH)+sU(cx,NH,SL)+dt(cx,NH); break;
+    case '2croches':{
+      const [x1,x2]=[cx-W*.2,cx+W*.2];
+      body=hF(x1,NH)+sU(x1,NH,SL*.8)+hF(x2,NH)+sU(x2,NH,SL*.8)+bm(x1,x2,STB);
+      break;}
+    case '4croches':{
+      const xs=[cx-W*.32,cx-W*.11,cx+W*.1,cx+W*.31];
+      body=xs.map(x=>hF(x,NH)+sU(x,NH,SL*.8)).join('')+bm(xs[0],xs[3],STB);
+      break;}
+    case 'croche-2dcr':{
+      const [x1,x2,x3]=[cx-W*.24,cx,cx+W*.24];
+      body=hF(x1,NH)+sU(x1,NH,SL*.8)+hF(x2,NH)+sU(x2,NH,SL*.8)+hF(x3,NH)+sU(x3,NH,SL*.8)
+        +bm(x1,x3,STB)+bm(x2,x3,STB+8);
+      break;}
+    case 'contretemps':{
+      // demi-pause + croche
+      const lw=W*.32,lh=8,rx=cx-W*.38;
+      const x2=cx+W*.2;
+      body=`<rect x="${rx}" y="${NH-SL*.55-lh}" width="${lw}" height="${lh}" fill="${col}"/>`
+        +hF(x2,NH)+sU(x2,NH,SL*.8)+flg(x2,STB);
+      break;}
     default: body=`<text x="${cx}" y="${NH}" text-anchor="middle" font-size="18" fill="${col}">?</text>`;
   }
   return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${body}</svg>`;
