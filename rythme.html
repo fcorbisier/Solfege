@@ -129,6 +129,15 @@ input[type=range]{padding:.2rem 0;accent-color:var(--accent)}
         </select>
       </div>
       <div>
+        <label>Nombre de mesures</label>
+        <select id="bars">
+          <option value="1">1 mesure</option>
+          <option value="2" selected>2 mesures</option>
+          <option value="3">3 mesures</option>
+          <option value="4">4 mesures</option>
+        </select>
+      </div>
+      <div>
         <label>Tempo — <span id="tv">80</span> BPM</label>
         <input type="range" id="tempo" min="40" max="160" value="80" oninput="document.getElementById('tv').textContent=this.value">
       </div>
@@ -445,10 +454,12 @@ function buildFigKbd(){
 
 // ═══ GÉNÉRATION ════════════════════════════
 function getMeter(){return parseInt(document.getElementById('meter').value)||4;}
+function getBars(){return parseInt(document.getElementById('bars').value)||2;}
 
 async function generate(){
   await ensureAudio();
-  const meter=getMeter(), active=activeGroups(), target=meter;
+  const meter=getMeter(), bars=getBars(), active=activeGroups();
+  const target=meter*bars;
   if(!active.filter(g=>g.cat!=='s').length){alert('Activez au moins une figure non-silence.');return;}
   const seq=[];let total=0;
   while(total<target-.001){
@@ -480,6 +491,7 @@ function renderStaff(hide){
   const ts=document.createElement('div');ts.className='time-sig';
   ts.innerHTML=`<span>${meter}</span><span>4</span>`;el.appendChild(ts);
   const bl=document.createElement('div');bl.className='barline';el.appendChild(bl);
+  let barBeats=0;
   currentSeq.forEach((id,i)=>{
     const grp=G(id),cell=document.createElement('div');
     cell.className='ncell';cell.style.width=grp.W+'px';
@@ -490,6 +502,12 @@ function renderStaff(hide){
       const lbl=document.createElement('div');lbl.className='fig-lbl';lbl.textContent=grp.label;cell.appendChild(lbl);
     }
     cell.id='nc-'+i;el.appendChild(cell);
+    barBeats+=grp.beats;
+    // Barre de mesure intermédiaire
+    if(Math.abs(barBeats%meter)<.001&&i<currentSeq.length-1){
+      barBeats=0;
+      const bar=document.createElement('div');bar.className='barline';el.appendChild(bar);
+    }
   });
   const fb=document.createElement('div');fb.style.cssText='display:flex;gap:3px;align-self:center;height:60px';
   fb.innerHTML='<div style="width:2px;height:100%;background:var(--text);opacity:.4"></div><div style="width:5px;height:100%;background:var(--text);opacity:.4"></div>';
@@ -513,7 +531,8 @@ function playRhythm(){
   const total=currentSeq.reduce((s,id)=>s+(G(id)?.beats||0),0);
   // Métronome continu pendant la séquence (si activé)
   if(document.getElementById('metro-on').checked){
-    for(let b=0;b<total;b++){
+    const totalBeats=currentSeq.reduce((s,id)=>s+(G(id)?.beats||0),0);
+    for(let b=0;b<totalBeats;b++){
       click(seqStart+b*beat, b%meter===0);
     }
   }
@@ -537,7 +556,7 @@ function playRhythm(){
 // ═══ RÉPONSE ═══════════════════════════════
 function totalB(arr){return arr.reduce((s,id)=>s+(G(id)?.beats||0),0);}
 function addAns(id){
-  const target=getMeter();
+  const target=getMeter()*getBars();
   if(totalB(userAns)+(G(id)?.beats||0)>target+.001)return;
   userAns.push(id);renderAns(null);
   // Feedback audio
@@ -564,8 +583,9 @@ function undoAns(){userAns.pop();renderAns(null);}
 
 function check(){
   if(!currentSeq.length)return;
-  if(Math.abs(totalB(userAns)-getMeter())>.001){
-    showResult(false,`Total : ${totalB(userAns)} temps, ${getMeter()} attendus.`);return;
+  const target=getMeter()*getBars();
+  if(Math.abs(totalB(userAns)-target)>.001){
+    showResult(false,`Total : ${totalB(userAns)} temps, ${target} attendus.`);return;
   }
   const res=currentSeq.map((id,i)=>id===userAns[i]);
   const ok=res.every(Boolean)&&userAns.length===currentSeq.length;
