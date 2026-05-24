@@ -156,7 +156,7 @@ input[type=range]{padding:.2rem 0;accent-color:var(--accent)}
 </div>
 <header>
   <h1>Dictée de Rythme</h1>
-  <p>Steinway Grand Piano · Entraînement à l'oreille rythmique · <span style="color:var(--border)">v3.6</span></p>
+  <p>Steinway Grand Piano · Entraînement à l'oreille rythmique · <span style="color:var(--border)">v1.0</span></p>
 </header>
 <div class="layout">
 
@@ -175,14 +175,21 @@ input[type=range]{padding:.2rem 0;accent-color:var(--accent)}
         <input type="range" id="bars" min="1" max="4" value="1">
         <div class="rl"><span>1</span><span id="bv">1</span><span>4</span></div>
       </div>
-      <div class="cg"><label>Note piano</label>
+      <div class="cg"><label>Son</label>
+        <select id="sound-type" onchange="onSoundTypeChange()">
+          <option value="piano">🎹 Piano</option>
+          <option value="clap">👏 Clap</option>
+          <option value="hihat">🥁 Hi-hat</option>
+        </select>
+      </div>
+      <div class="cg" id="piano-note-row"><label>Note piano</label>
         <select id="piano-note">
           <option value="do">Do</option><option value="ré">Ré</option><option value="mi">Mi</option>
           <option value="fa">Fa</option><option value="sol" selected>Sol</option>
           <option value="la">La</option><option value="si">Si</option>
         </select>
       </div>
-      <div class="cg"><label>Octave</label>
+      <div class="cg" id="piano-oct-row"><label>Octave</label>
         <select id="piano-oct">
           <option value="3">3 (grave)</option><option value="4" selected>4 (médium)</option><option value="5">5 (aigu)</option>
         </select>
@@ -609,6 +616,42 @@ function click(t,acc){
   o.connect(g);g.connect(ac.destination);o.start(t);o.stop(t+.05);
 }
 
+function getSoundType(){return document.getElementById('sound-type')?.value||'piano';}
+
+function onSoundTypeChange(){
+  const isPiano=getSoundType()==='piano';
+  document.getElementById('piano-note-row').style.display=isPiano?'':'none';
+  document.getElementById('piano-oct-row').style.display=isPiano?'':'none';
+}
+
+function playClap(tAbs, type){
+  const ac=getAC();
+  const t=tAbs??ac.currentTime+.01;
+  if(type==='clap'){
+    const bufLen=ac.sampleRate*.08;
+    const buf=ac.createBuffer(1,bufLen,ac.sampleRate);
+    const data=buf.getChannelData(0);
+    for(let i=0;i<bufLen;i++) data[i]=(Math.random()*2-1)*Math.pow(1-i/bufLen,3);
+    const src=ac.createBufferSource();src.buffer=buf;
+    const filter=ac.createBiquadFilter();filter.type='bandpass';filter.frequency.value=1200;filter.Q.value=0.8;
+    const gain=ac.createGain();
+    gain.gain.setValueAtTime(1.2,t);gain.gain.exponentialRampToValueAtTime(.001,t+.12);
+    src.connect(filter);filter.connect(gain);gain.connect(ac.destination);
+    src.start(t);src.stop(t+.15);
+  } else if(type==='hihat'){
+    const bufLen=ac.sampleRate*.04;
+    const buf=ac.createBuffer(1,bufLen,ac.sampleRate);
+    const data=buf.getChannelData(0);
+    for(let i=0;i<bufLen;i++) data[i]=(Math.random()*2-1)*Math.pow(1-i/bufLen,4);
+    const src=ac.createBufferSource();src.buffer=buf;
+    const filter=ac.createBiquadFilter();filter.type='highpass';filter.frequency.value=7000;
+    const gain=ac.createGain();
+    gain.gain.setValueAtTime(.8,t);gain.gain.exponentialRampToValueAtTime(.001,t+.06);
+    src.connect(filter);filter.connect(gain);gain.connect(ac.destination);
+    src.start(t);src.stop(t+.08);
+  }
+}
+
 function getPianoNote(){
   const n=document.getElementById('piano-note')?.value||'sol';
   const o=parseInt(document.getElementById('piano-oct')?.value||'4');
@@ -618,17 +661,20 @@ function getPianoNote(){
 function playPiano(t, dur){
   if(!sampler||!sampler.loaded)return;
   const note=getPianoNote();
-  // Durée minimale 0.18s pour que la note soit audible même pour les doubles croches
   sampler.triggerAttackRelease(note, Math.max(Math.min(dur,2), 0.18), t);
 }
 
 function playGrp(grp, tAbs, beat){
-  // tAbs = temps absolu WebAudio, on convertit en offset Tone.js
   const ac=getAC();
   const toneOffset=tAbs-ac.currentTime;
   const minBeat=Math.max(beat,0.25);
+  const soundType=getSoundType();
   grp.events.forEach(ev=>{
-    if(!ev.r) playPiano(Tone.now()+toneOffset+ev.o*minBeat, ev.d*minBeat);
+    if(!ev.r){
+      const tNote=tAbs+ev.o*minBeat;
+      if(soundType==='piano') playPiano(Tone.now()+toneOffset+ev.o*minBeat, ev.d*minBeat);
+      else playClap(tNote, soundType);
+    }
   });
 }
 
@@ -841,9 +887,9 @@ function playRhythm(seq){
   if(countOn()) { countEl.style.display='block'; showCount('…',''); }
   else countEl.style.display='none';
 
-  let t=ac.currentTime+.1;
+  let t=ac.currentTime+.2;
   // Mesure d'intro
-  for(let i=0;i<meter;i++){click(t,i===0);t+=beat;}t+=beat*.2;
+  for(let i=0;i<meter;i++){click(t,i===0);t+=beat;}
   const seqStart=t;
   const totalBeats=seq.reduce((s,id)=>s+(G(id)?.beats||0),0);
   const totalDur=totalBeats*beat;
@@ -908,8 +954,8 @@ function playDemo(){
   noteOnsets.forEach((_,i)=>{const dot=document.createElement('div');dot.className='hand-dot';dot.id='hd-'+i;dot.textContent='👐';handsRow.appendChild(dot);});
   document.getElementById('demo-panel').style.display='block';document.getElementById('demo-progress').style.width='0%';
   playing=true;document.getElementById('play-ind').classList.add('on');document.getElementById('btn-play').disabled=true;document.getElementById('btn-demo').disabled=true;
-  let t=ac.currentTime+.1;
-  for(let i=0;i<meter;i++){click(t,i===0);t+=beat;}t+=beat*.2;
+  let t=ac.currentTime+.2;
+  for(let i=0;i<meter;i++){click(t,i===0);t+=beat;}
   const seqStart=t,totalDur=totalBeats*beat;
   for(let b=0;b<totalBeats;b++){
     const delay=(seqStart+b*beat-ac.currentTime)*1000,isAccent=b%meter===0;
@@ -1475,6 +1521,19 @@ document.addEventListener('visibilitychange',()=>{
 document.addEventListener('click',()=>{
   if(samplerReady&&Tone){Tone.getContext().rawContext.resume().catch(()=>{});}
 },{passive:true});
+
+setInterval(()=>{
+  if(!samplerReady||!Tone)return;
+  const ac=Tone.getContext().rawContext;
+  if(ac.state==='suspended'){ac.resume().catch(()=>{});return;}
+  try{
+    const osc=ac.createOscillator();
+    const gain=ac.createGain();
+    gain.gain.value=0;
+    osc.connect(gain);gain.connect(ac.destination);
+    osc.start();osc.stop(ac.currentTime+0.001);
+  }catch(e){}
+},25000);
 </script>
 </body>
 </html>

@@ -142,6 +142,14 @@ input[type=range]{padding:.2rem 0;accent-color:var(--accent)}
         <input type="range" id="tempo" min="40" max="160" value="80" oninput="document.getElementById('tv').textContent=this.value">
       </div>
       <div>
+        <label>Son</label>
+        <select id="sound-type" onchange="onSoundTypeChange()">
+          <option value="piano">🎹 Piano</option>
+          <option value="clap">👏 Clap</option>
+          <option value="hihat">🥁 Hi-hat</option>
+        </select>
+      </div>
+      <div id="piano-note-row">
         <label>Note piano</label>
         <select id="piano-note">
           <option value="do">Do</option><option value="ré">Ré</option>
@@ -335,6 +343,49 @@ let score={t:0,ok:0,h:[]};
 let sampler=null, ready=false, Tone=null;
 const NOTE_MAP={do:{4:'C4'},ré:{4:'D4'},mi:{4:'E4'},fa:{4:'F4'},sol:{4:'G4'},la:{4:'A4'},si:{4:'B4'}};
 
+// ═══ SONS PERCUSSIFS ═══════════════════════
+function playClap(tAbs, type){
+  if(!ready||!Tone)return;
+  const ac=Tone.getContext().rawContext;
+  const t=tAbs??ac.currentTime+.01;
+
+  if(type==='clap'){
+    // Bruit blanc court — clap de mains
+    const bufLen=ac.sampleRate*.08;
+    const buf=ac.createBuffer(1,bufLen,ac.sampleRate);
+    const data=buf.getChannelData(0);
+    for(let i=0;i<bufLen;i++) data[i]=(Math.random()*2-1)*Math.pow(1-i/bufLen,3);
+    const src=ac.createBufferSource();src.buffer=buf;
+    const gain=ac.createGain();
+    // Légère distorsion via filtre passe-bande pour sonner "clap"
+    const filter=ac.createBiquadFilter();
+    filter.type='bandpass';filter.frequency.value=1200;filter.Q.value=0.8;
+    gain.gain.setValueAtTime(1.2,t);
+    gain.gain.exponentialRampToValueAtTime(.001,t+.12);
+    src.connect(filter);filter.connect(gain);gain.connect(ac.destination);
+    src.start(t);src.stop(t+.15);
+  } else if(type==='hihat'){
+    // Hi-hat fermé — bruit filtré aigu court
+    const bufLen=ac.sampleRate*.04;
+    const buf=ac.createBuffer(1,bufLen,ac.sampleRate);
+    const data=buf.getChannelData(0);
+    for(let i=0;i<bufLen;i++) data[i]=(Math.random()*2-1)*Math.pow(1-i/bufLen,4);
+    const src=ac.createBufferSource();src.buffer=buf;
+    const filter=ac.createBiquadFilter();
+    filter.type='highpass';filter.frequency.value=7000;
+    const gain=ac.createGain();
+    gain.gain.setValueAtTime(.8,t);
+    gain.gain.exponentialRampToValueAtTime(.001,t+.06);
+    src.connect(filter);filter.connect(gain);gain.connect(ac.destination);
+    src.start(t);src.stop(t+.08);
+  }
+}
+
+function onSoundTypeChange(){
+  const isPiano=document.getElementById('sound-type').value==='piano';
+  document.getElementById('piano-note-row').style.display=isPiano?'block':'none';
+}
+
 // ═══ AUDIO ═════════════════════════════════
 async function loadTone(){
   if(Tone)return;
@@ -346,6 +397,11 @@ async function loadTone(){
   Tone=window.Tone;
 }
 async function ensureAudio(){
+  // En mode clap/hihat, pas besoin du sampler Steinway
+  if(getSoundType()!=='piano'){
+    if(!Tone){await loadTone();await Tone.start();}
+    ready=true;return;
+  }
   if(ready)return;
   document.getElementById('loading').style.display='flex';
   await loadTone();await Tone.start();
@@ -371,12 +427,12 @@ function getPianoMidi(){
   const n=document.getElementById('piano-note').value;
   return NOTE_MAP[n]?.[4]||'G4';
 }
+function getSoundType(){return document.getElementById('sound-type').value;}
+
 function playGrp(grp, tAbs){
-  if(!sampler||!sampler.loaded)return;
   const ac=Tone.getContext().rawContext;
   const beat=60/+document.getElementById('tempo').value;
-  const toneOffset=tAbs-ac.currentTime;
-  const midi=getPianoMidi();
+  const soundType=getSoundType();
   const events={
     'ronde':[{o:0,d:3.5}],'blanche':[{o:0,d:1.7}],'noire':[{o:0,d:.85}],
     'croche':[{o:0,d:.4}],
@@ -388,7 +444,14 @@ function playGrp(grp, tAbs){
     's-ronde':[],'s-blanche':[],'s-noire':[],'s-croche':[],
   };
   (events[grp.id]||[]).forEach(ev=>{
-    sampler.triggerAttackRelease(midi, Math.max(ev.d*beat,.18), Tone.now()+toneOffset+ev.o*beat);
+    const tNote=tAbs+ev.o*beat;
+    if(soundType==='piano'){
+      if(!sampler||!sampler.loaded)return;
+      const toneOffset=tNote-ac.currentTime;
+      sampler.triggerAttackRelease(getPianoMidi(), Math.max(ev.d*beat,.18), Tone.now()+toneOffset);
+    } else {
+      playClap(tNote, soundType);
+    }
   });
 }
 
@@ -524,10 +587,10 @@ function playRhythm(){
   playing=true;
   document.getElementById('play-ind').classList.add('on');
   document.getElementById('btn-play').disabled=true;
-  let t=ac.currentTime+.1;
-  // Mesure d'intro
-  for(let i=0;i<meter;i++){click(t,i===0);t+=beat;}t+=beat*.2;
-  const seqStart=t;
+  let t=ac.currentTime+.2;
+  // Mesure d'intro — le dernier click de l'intro tombe juste avant seqStart
+  for(let i=0;i<meter;i++){click(t,i===0);t+=beat;}
+  const seqStart=t; // seqStart tombe exactement sur le prochain temps fort
   const total=currentSeq.reduce((s,id)=>s+(G(id)?.beats||0),0);
   // Métronome continu pendant la séquence (si activé)
   if(document.getElementById('metro-on').checked){
@@ -637,6 +700,19 @@ document.addEventListener('visibilitychange',()=>{
 document.addEventListener('click',()=>{
   if(ready&&Tone){Tone.getContext().rawContext.resume().catch(()=>{});}
 },{passive:true});
+
+setInterval(()=>{
+  if(!ready||!Tone)return;
+  const ac=Tone.getContext().rawContext;
+  if(ac.state==='suspended'){ac.resume().catch(()=>{});return;}
+  try{
+    const osc=ac.createOscillator();
+    const gain=ac.createGain();
+    gain.gain.value=0;
+    osc.connect(gain);gain.connect(ac.destination);
+    osc.start();osc.stop(ac.currentTime+0.001);
+  }catch(e){}
+},25000);
 </script>
 </body>
 </html>

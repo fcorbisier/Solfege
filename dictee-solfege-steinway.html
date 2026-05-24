@@ -132,7 +132,7 @@
 
 <header>
   <h1>Dictée de Solfège</h1>
-  <p>Steinway Grand Piano · Entraînement à l'oreille · <span style="color:var(--border)">v3.1</span></p>
+  <p>Steinway Grand Piano · Entraînement à l'oreille · <span style="color:var(--border)">v1.0</span></p>
 </header>
 
 <div class="layout">
@@ -392,36 +392,31 @@ function loadSampler() {
   });
 }
 
-function playPianoNote(note, oct, duration) {
-  if (!sampler || !sampler.loaded) return;
-  const midiNote = NOTE_MAP[note]?.[oct];
-  if (!midiNote) return;
-  Tone.start();
-  sampler.triggerAttackRelease(midiNote, duration);
-}
-
 // ── State ──────────────────────────────────────────────────────────────────────
 let octave = 4, seq = [], ans = [], revealed = false, playing = false;
 let score  = {t:0, ok:0, ko:0, h:[]};
 let noteStats = {};
 NOTES.forEach(n => noteStats[n] = {seen:0, missed:0});
-// Mode accord : stocke l'accord courant
-let currentChord = null;  // {root, third, fifth, name, quality}
-let chordAns = new Set(); // notes cochées par l'utilisateur
+let currentChord = null;
+let chordAns = new Set();
 
 function isChordMode() { return ['chord','interval-sim'].includes(document.getElementById('mode').value); }
 
-function playPianoNote(note, oct, duration) {
+// Joue une note — tAbs optionnel (horloge audio absolue). Si absent, joue immédiatement
+function playPianoNote(note, oct, duration, tAbs) {
   if (!sampler || !sampler.loaded) return;
   const midiNote = NOTE_MAP[note]?.[oct];
   if (!midiNote) return;
   Tone.start();
-  sampler.triggerAttackRelease(midiNote, duration);
+  if (tAbs !== undefined) {
+    sampler.triggerAttackRelease(midiNote, duration, tAbs);
+  } else {
+    sampler.triggerAttackRelease(midiNote, duration);
+  }
 }
 
-function playPianoChord(notes, oct, duration) {
-  // Joue plusieurs notes simultanément
-  notes.forEach(note => playPianoNote(note, oct, duration));
+function playPianoChord(notes, oct, duration, tAbs) {
+  notes.forEach(note => playPianoNote(note, oct, duration, tAbs));
 }
 
 // ── Playback ───────────────────────────────────────────────────────────────────
@@ -447,23 +442,24 @@ function playSeq(s) {
   }
 
   if (mode === 'chord' || mode === 'interval-sim') {
-    // Arpège + accord : timing court, setTimeout OK ici
+    // Arpège rapide via horloge audio, puis accord simultané
+    const t0 = ac.currentTime + 0.15;
     s.forEach((note, i) => {
-      setTimeout(() => {
-        highlightNote(i, true);
-        playPianoNote(note, octave, '4n');
-      }, i * 150);
+      const tNote = t0 + i * 0.15;
+      playPianoNote(note, octave, '4n', tNote);
+      setTimeout(() => highlightNote(i, true), (tNote - ac.currentTime) * 1000);
     });
+    const tChord = t0 + s.length * 0.15 + 0.1;
+    playPianoChord(s, octave, '2n', tChord);
     setTimeout(() => {
       document.querySelectorAll('.staff-note').forEach(el => el.style.filter='drop-shadow(0 0 5px var(--accent))');
-      playPianoChord(s, octave, '2n');
-    }, s.length * 150 + 250);
+    }, (tChord - ac.currentTime) * 1000);
     setTimeout(() => {
       document.querySelectorAll('.staff-note').forEach(el => el.style.filter='');
       document.getElementById('play-ind').classList.remove('on');
       document.getElementById('btn-play').disabled = false;
       playing = false;
-    }, s.length * 150 + 250 + 1500);
+    }, (tChord - ac.currentTime) * 1000 + 1500);
   } else {
     // Mode séquentiel : planifier via l'horloge audio Tone.js
     const t0 = ac.currentTime + 0.3;
@@ -1160,12 +1156,14 @@ function runPassiveCycle() {
       let i = 0;
       function sayNext() {
         if (!passiveActive || i >= passiveSeq.length) {
-          // Rejouer la séquence au piano en même temps que la voix
+          // Rejouer la séquence au piano via horloge audio
+          const ac = Tone.getContext().rawContext;
+          const beat = 60 / +document.getElementById('tempo').value;
+          const t0 = ac.currentTime + 0.2;
           passiveSeq.forEach((note, j) => {
-            setTimeout(() => playPianoNote(note, octave, '4n'), j * 600);
+            playPianoNote(note, octave, beat * 0.85, t0 + j * beat);
           });
-          // Enchaîner le prochain cycle
-          passiveTimer = setTimeout(runPassiveCycle, passiveSeq.length * 600 + 1500);
+          passiveTimer = setTimeout(runPassiveCycle, passiveSeq.length * beat * 1000 + 1500);
           return;
         }
         passiveSpeak(cap(passiveSeq[i]), () => {
@@ -1219,6 +1217,19 @@ document.addEventListener('visibilitychange',()=>{
 document.addEventListener('click',()=>{
   if(samplerReady&&Tone){Tone.getContext().rawContext.resume().catch(()=>{});}
 },{passive:true});
+
+setInterval(()=>{
+  if(!samplerReady||!Tone)return;
+  const ac=Tone.getContext().rawContext;
+  if(ac.state==='suspended'){ac.resume().catch(()=>{});return;}
+  try{
+    const osc=ac.createOscillator();
+    const gain=ac.createGain();
+    gain.gain.value=0;
+    osc.connect(gain);gain.connect(ac.destination);
+    osc.start();osc.stop(ac.currentTime+0.001);
+  }catch(e){}
+},25000);
 </script>
 </body>
 </html>

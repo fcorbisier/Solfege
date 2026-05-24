@@ -7,6 +7,11 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎹</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
+@font-face{
+  font-family:'Bravura Text';
+  src:url('https://cdn.jsdelivr.net/fontsource/fonts/bravura-text@latest/latin-400-normal.woff2') format('woff2');
+  font-display:swap;
+}
 :root{--bg:#0e0e12;--surface:#16161e;--surface2:#1e1e2a;--border:#2a2a3a;--accent:#c8a97e;--text:#e8e4d9;--muted:#6b6880;--success:#7ec87e;--error:#c87e7e}
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;min-height:100vh;
@@ -127,6 +132,7 @@ input[type=range]{padding:.2rem 0;accent-color:var(--accent)}
         <label>Mode</label>
         <select id="mode">
           <option value="random">Séquence aléatoire</option>
+          <option value="melody">Mélodie rythmée</option>
           <option value="custom">Séquence personnalisée</option>
         </select>
       </div>
@@ -230,6 +236,36 @@ input[type=range]{padding:.2rem 0;accent-color:var(--accent)}
 </div><!-- /layout -->
 
 <script>
+// ═══ DURÉES POUR MODE MÉLODIE ══════════════
+// Chaque durée : id, beats, symbole SMuFL, durée Tone.js
+const DURS = [
+  {id:'blanche',   beats:2,   sym:'𝅗𝅥', tone:'2n',   weight:1},
+  {id:'noire',     beats:1,   sym:'♩',  tone:'4n',   weight:3},
+  {id:'noire-pt',  beats:1.5, sym:'♩.', tone:'4n.',  weight:1},
+  {id:'croche',    beats:.5,  sym:'♪',  tone:'8n',   weight:2},
+  {id:'2croches',  beats:1,   sym:'♪♪', tone:'8n',   weight:2},
+  {id:'4dcr',      beats:1,   sym:'𝅘𝅥𝅯𝅘𝅥𝅯𝅘𝅥𝅯𝅘𝅥𝅯', tone:'16n', weight:1},
+  {id:'contretemps',beats:1,  sym:'𝄾♪', tone:'8n',   weight:1},
+];
+
+// Notes d'une figure : {noteIdx offset, durée Tone}
+const DUR_EVENTS = {
+  'blanche':    [{o:0, tone:'2n'}],
+  'noire':      [{o:0, tone:'4n'}],
+  'noire-pt':   [{o:0, tone:'4n.'}],
+  'croche':     [{o:0, tone:'8n'}],
+  '2croches':   [{o:0, tone:'8n'}, {o:.5, tone:'8n'}],
+  '4dcr':       [{o:0, tone:'16n'},{o:.25,tone:'16n'},{o:.5,tone:'16n'},{o:.75,tone:'16n'}],
+  'contretemps':[{o:.5, tone:'8n'}], // silence + croche
+};
+
+function randDur(){
+  const total=DURS.reduce((s,d)=>s+d.weight,0);
+  let r=Math.random()*total;
+  for(const d of DURS){r-=d.weight;if(r<=0)return d;}
+  return DURS[1];
+}
+
 // ═══ DONNÉES ═══════════════════════════════
 const NOTES=['do','ré','mi','fa','sol','la','si'];
 const COLORS={do:'#e07070',ré:'#e09550',mi:'#d4b840',fa:'#70b870',sol:'#5090d0',la:'#8060c0',si:'#c060a0'};
@@ -243,7 +279,7 @@ function noteY(n,o){return o===5?(NY5[n]??36):o===3?(NY3[n]??90):(NY4[n]??66);}
 function cap(s){return s.charAt(0).toUpperCase()+s.slice(1);}
 
 // ═══ STATE ═════════════════════════════════
-let oct=4, seq=[], ans=[], revealed=false, playing=false;
+let oct=4, seq=[], melodyDurs=[], ans=[], revealed=false, playing=false;
 let score={t:0,ok:0,h:[]};
 let sampler=null, ready=false, Tone=null;
 
@@ -285,40 +321,110 @@ function piano(note,o,dur){
 }
 
 // ═══ PORTÉE SVG ════════════════════════════
+// Rendu d'une tête de note avec sa figure rythmique
+function noteHeadSVG(x, y, col, durId, hidden){
+  if(hidden){
+    return `<g filter="url(#note-blur)" opacity=".18">
+      <ellipse cx="${x}" cy="54" rx="7" ry="5" transform="rotate(-15,${x},54)" fill="var(--muted)"/>
+      <line x1="${x+6}" y1="52" x2="${x+6}" y2="22" stroke="var(--muted)" stroke-width="1.5"/>
+    </g>`;
+  }
+  const up=y>=54;
+  let svg='';
+  // Ligne supplémentaire Do
+  if(y===90) svg+=`<line x1="${x-10}" y1="90" x2="${x+10}" y2="90" stroke="${col}" stroke-width="1.2" opacity=".7"/>`;
+  if(y===48) svg+=`<line x1="${x-10}" y1="48" x2="${x+10}" y2="48" stroke="${col}" stroke-width="1.2" opacity=".7"/>`;
+
+  const isOpen = durId==='blanche'||durId==='blanche-pt';
+  const isRest  = durId==='contretemps'; // commence par un silence
+
+  if(isOpen){
+    svg+=`<ellipse cx="${x}" cy="${y}" rx="7" ry="5" transform="rotate(-15,${x},${y})" fill="none" stroke="${col}" stroke-width="1.7"/>`;
+  } else {
+    svg+=`<ellipse cx="${x}" cy="${y}" rx="7" ry="5" transform="rotate(-15,${x},${y})" fill="${col}"/>`;
+  }
+
+  // Hampe
+  const hampeUp = up;
+  if(durId!=='blanche'&&durId!=='noire'){
+    // Hampe toujours
+  }
+  if(hampeUp){
+    svg+=`<line x1="${x+6}" y1="${y-2}" x2="${x+6}" y2="${y-33}" stroke="${col}" stroke-width="1.5"/>`;
+    // Crochet croche
+    if(durId==='croche'||durId==='contretemps')
+      svg+=`<path d="M${x+6},${y-33} C${x+18},${y-25} ${x+18},${y-13} ${x+6},${y-9}" fill="none" stroke="${col}" stroke-width="1.5"/>`;
+  } else {
+    svg+=`<line x1="${x-6}" y1="${y+2}" x2="${x-6}" y2="${y+33}" stroke="${col}" stroke-width="1.5"/>`;
+    if(durId==='croche'||durId==='contretemps')
+      svg+=`<path d="M${x-6},${y+33} C${x+6},${y+25} ${x+6},${y+13} ${x-6},${y+9}" fill="none" stroke="${col}" stroke-width="1.5"/>`;
+  }
+  // Point augmentation
+  if(durId==='noire-pt'||durId==='blanche-pt')
+    svg+=`<circle cx="${x+11}" cy="${y-4}" r="2.2" fill="${col}"/>`;
+
+  return svg;
+}
+
 function buildStaff(results){
   const hint=document.getElementById('staff-hint');
   const lines=document.getElementById('staff-lines');
   const clefEl=document.getElementById('staff-clef');
   const notesEl=document.getElementById('staff-notes');
-  const w=Math.max(600,105+seq.length*58+30);
+  const isMelody=melodyDurs.length>0;
+
+  // Largeur : en mélodie on tient compte des durées (figures plus larges)
+  const baseW=isMelody?75:58;
+  const w=Math.max(600,105+seq.length*baseW+30);
   document.getElementById('staff-svg').setAttribute('viewBox',`0 0 ${w} 120`);
   lines.innerHTML=[30,42,54,66,78].map(y=>`<line x1="8" y1="${y}" x2="${w-10}" y2="${y}" stroke="var(--muted)" stroke-width="1" opacity=".4"/>`).join('')
     +`<line x1="8" y1="30" x2="8" y2="78" stroke="var(--text)" stroke-width="2" opacity=".5"/>`;
   clefEl.innerHTML=`<text x="12" y="92" font-size="80" font-family="serif" fill="var(--text)" opacity=".75">𝄞</text>`;
   if(!seq.length){hint.style.display='block';notesEl.innerHTML='';return;}
   hint.style.display='none';
-  const x0=90, sp=Math.min(58,(w-x0-20)/Math.max(seq.length,1));
+
+  const x0=90;
+  const sp=Math.min(baseW,(w-x0-20)/Math.max(seq.length,1));
   let svg='';
+
   seq.forEach((note,i)=>{
     const x=x0+i*sp+sp/2;
     const y=noteY(note,oct);
-    const up=y>=54;
     const col=results?(results[i]?'var(--success)':'var(--error)'):(COLORS[note]||'var(--text)');
     const hidden=!revealed&&!results;
-    svg+=`<g class="sn" data-i="${i}" style="filter:${hidden?'url(#note-glow)':''};opacity:${hidden?.15:1}">`;
-    if(hidden){
-      // Au centre, flou total
-      svg+=`<g filter="url(#note-blur)" opacity=".18">`;
-      svg+=`<ellipse cx="${x}" cy="54" rx="7" ry="5" transform="rotate(-15,${x},54)" fill="var(--muted)"/>`;
-      svg+=`<line x1="${x+6}" y1="52" x2="${x+6}" y2="22" stroke="var(--muted)" stroke-width="1.5"/>`;
-      svg+=`</g>`;
-    } else {
-      if(note==='do'&&oct===4) svg+=`<line x1="${x-10}" y1="90" x2="${x+10}" y2="90" stroke="${col}" stroke-width="1.2" opacity=".7"/>`;
-      if(note==='do'&&oct===5) svg+=`<line x1="${x-10}" y1="48" x2="${x+10}" y2="48" stroke="${col}" stroke-width="1.2" opacity=".7"/>`;
-      svg+=`<ellipse cx="${x}" cy="${y}" rx="7" ry="5" transform="rotate(-15,${x},${y})" fill="${col}"/>`;
-      if(up) svg+=`<line x1="${x+6}" y1="${y-2}" x2="${x+6}" y2="${y-33}" stroke="${col}" stroke-width="1.5"/>`;
-      else   svg+=`<line x1="${x-6}" y1="${y+2}" x2="${x-6}" y2="${y+33}" stroke="${col}" stroke-width="1.5"/>`;
-      svg+=`<text x="${x}" y="110" text-anchor="middle" font-size="9" font-family="DM Mono,monospace" fill="${col}" opacity=".65">${cap(note)}</text>`;
+    const durId=isMelody?(melodyDurs[i]?.id||'noire'):'noire';
+
+    svg+=`<g class="sn" data-i="${i}">`;
+    svg+=noteHeadSVG(x,y,col,durId,hidden);
+
+    if(!hidden){
+      // Nom de la note
+      svg+=`<text x="${x}" y="112" text-anchor="middle" font-size="9" font-family="DM Mono,monospace" fill="${col}" opacity=".65">${cap(note)}</text>`;
+      // Symbole de durée en mode mélodie (Bravura Text, en dessous du nom)
+      if(isMelody){
+        const symCol=hidden?'var(--muted)':col;
+        const sym=melodyDurs[i]?.sym||'♩';
+        // Ligatures pour 2 croches et 4 dcr
+        if(durId==='2croches'){
+          const off=sp*.3;
+          svg+=`<ellipse cx="${x-off}" cy="${y}" rx="7" ry="5" transform="rotate(-15,${x-off},${y})" fill="${col}"/>`;
+          svg+=`<line x1="${x-off+6}" y1="${y-2}" x2="${x-off+6}" y2="${y-33}" stroke="${col}" stroke-width="1.5"/>`;
+          svg+=`<line x1="${x-off+6}" y1="${y-33}" x2="${x+6}" y2="${y-33}" stroke="${col}" stroke-width="2.5"/>`;
+        }
+        if(durId==='4dcr'){
+          [-1.5,-.5].forEach(k=>{
+            const xk=x+k*sp*.2;
+            svg+=`<ellipse cx="${xk}" cy="${y}" rx="7" ry="5" transform="rotate(-15,${xk},${y})" fill="${col}"/>`;
+            svg+=`<line x1="${xk+6}" y1="${y-2}" x2="${xk+6}" y2="${y-33}" stroke="${col}" stroke-width="1.5"/>`;
+          });
+          svg+=`<line x1="${x-1.5*sp*.2+6}" y1="${y-33}" x2="${x+6}" y2="${y-33}" stroke="${col}" stroke-width="2.5"/>`;
+          svg+=`<line x1="${x-1.5*sp*.2+6}" y1="${y-26}" x2="${x+6}" y2="${y-26}" stroke="${col}" stroke-width="2.5"/>`;
+        }
+        if(durId==='contretemps'){
+          // Demi-soupir avant la croche
+          svg+=`<text x="${x-18}" y="${y+6}" font-family="Bravura Text,serif" font-size="20" fill="${col}" opacity=".8">𝄾</text>`;
+        }
+      }
     }
     svg+=`</g>`;
   });
@@ -343,8 +449,10 @@ async function generate(){
   await ensureAudio();
   const active=getActive();
   if(!active.length){alert('Sélectionnez au moins une note.');return;}
+  const mode=document.getElementById('mode').value;
   const len=+document.getElementById('length').value;
   seq=Array.from({length:len},()=>active[Math.floor(Math.random()*active.length)]);
+  melodyDurs=mode==='melody'?Array.from({length:len},()=>randDur()):[];
   ans=[];revealed=false;
   buildStaff(null);
   renderAns(null);
@@ -381,29 +489,48 @@ function playSeq(){
   document.getElementById('btn-play').disabled=true;
   const beat=60/+document.getElementById('tempo').value;
   const ac=Tone.getContext().rawContext;
-  // Délai initial généreux pour éviter la latence au démarrage
   const t0=ac.currentTime+0.3;
+  const isMelody=melodyDurs.length>0;
 
-  seq.forEach((note,i)=>{
-    const tNote=t0+i*beat;
-    // Planifier l'audio via l'horloge Tone.js (précis)
-    sampler.triggerAttackRelease(
-      NOTE_MAP[note]?.[oct]||'C4',
-      beat*0.85,
-      tNote
-    );
-    // Planifier le highlight via setTimeout (approximatif mais suffisant pour le visuel)
-    const delayMs=(tNote-ac.currentTime)*1000;
-    setTimeout(()=>hlNote(i), delayMs);
-  });
-
-  const totalMs=(t0+seq.length*beat-ac.currentTime)*1000+300;
-  setTimeout(()=>{
-    hlNote(-1);
-    document.getElementById('play-ind').classList.remove('on');
-    document.getElementById('btn-play').disabled=false;
-    playing=false;
-  }, totalMs);
+  if(isMelody){
+    // Mode mélodie : chaque note a une durée propre, on avance le curseur
+    let cursor=0;
+    seq.forEach((note,i)=>{
+      const dur=melodyDurs[i];
+      const events=DUR_EVENTS[dur.id]||[{o:0,tone:'4n'}];
+      events.forEach(ev=>{
+        const tNote=t0+(cursor+ev.o)*beat;
+        const midi=NOTE_MAP[note]?.[oct];
+        if(midi) sampler.triggerAttackRelease(midi, ev.tone, tNote);
+      });
+      // Highlight sur le premier événement de la figure
+      const tHighlight=t0+cursor*beat;
+      setTimeout(()=>hlNote(i),(tHighlight-ac.currentTime)*1000);
+      cursor+=dur.beats;
+    });
+    const totalMs=(t0+cursor*beat-ac.currentTime)*1000+300;
+    setTimeout(()=>{
+      hlNote(-1);
+      document.getElementById('play-ind').classList.remove('on');
+      document.getElementById('btn-play').disabled=false;
+      playing=false;
+    },totalMs);
+  } else {
+    // Mode normal : toutes les notes en noires
+    seq.forEach((note,i)=>{
+      const tNote=t0+i*beat;
+      const midi=NOTE_MAP[note]?.[oct]||'C4';
+      sampler.triggerAttackRelease(midi,beat*0.85,tNote);
+      setTimeout(()=>hlNote(i),(tNote-ac.currentTime)*1000);
+    });
+    const totalMs=(t0+seq.length*beat-ac.currentTime)*1000+300;
+    setTimeout(()=>{
+      hlNote(-1);
+      document.getElementById('play-ind').classList.remove('on');
+      document.getElementById('btn-play').disabled=false;
+      playing=false;
+    },totalMs);
+  }
 }
 
 function playRef(){piano('do',oct,'2n');}
@@ -469,6 +596,7 @@ function setOct(o){
 }
 document.getElementById('mode').onchange=e=>{
   const custom=e.target.value==='custom';
+  const melody=e.target.value==='melody';
   document.getElementById('custom-section').style.display=custom?'block':'none';
   document.getElementById('random-options').style.display=custom?'none':'block';
   const btn=document.getElementById('btn-gen');
@@ -496,10 +624,24 @@ document.addEventListener('visibilitychange',()=>{
     Tone.getContext().rawContext.resume().catch(()=>{});
   }
 });
-// Aussi sur le premier clic/tap après inactivité
 document.addEventListener('click',()=>{
   if(ready&&Tone){Tone.getContext().rawContext.resume().catch(()=>{});}
 },{passive:true});
+
+// Keepalive audio — empêche Chrome de suspendre l'AudioContext après inactivité
+// Joue un oscillateur silencieux toutes les 25 secondes
+setInterval(()=>{
+  if(!ready||!Tone)return;
+  const ac=Tone.getContext().rawContext;
+  if(ac.state==='suspended'){ac.resume().catch(()=>{});return;}
+  try{
+    const osc=ac.createOscillator();
+    const gain=ac.createGain();
+    gain.gain.value=0; // silencieux
+    osc.connect(gain);gain.connect(ac.destination);
+    osc.start();osc.stop(ac.currentTime+0.001);
+  }catch(e){}
+},25000);
 </script>
 </body>
 </html>
