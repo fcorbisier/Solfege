@@ -1231,7 +1231,7 @@ function runPassiveCycle() {
   }, seqDur + 300);
 }
 buildKbd();
-loadProgress();loadConfig();
+loadProgress();
 buildMelodySelector();
 updateScore();
 
@@ -1369,6 +1369,9 @@ document.addEventListener('input', e => {
   if (e.target.type === 'range') saveConfig();
 });
 
+
+// Charger la config après que tout soit défini
+loadConfig();
 </script>
 </body>
 </html>

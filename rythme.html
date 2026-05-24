@@ -847,7 +847,7 @@ document.addEventListener('keydown',e=>{
   if(e.key===' '){e.preventDefault();playRhythm();}
   else if(e.key==='Enter'){e.preventDefault();check();}
 });
-buildToggles();buildFigKbd();updateScore();loadConfig();
+buildToggles();buildFigKbd();updateScore();
 document.getElementById('btn-gen').addEventListener('click',ensureAudio,{once:true});
 
 // Toggle métronome
@@ -959,6 +959,9 @@ function resetConfig() {
 // Auto-save sur tout changement dans la config
 document.addEventListener('change', e => { saveConfig(); });
 document.addEventListener('input', e => { if(e.target.type==='range') saveConfig(); });
+
+// Charger la config après que tout soit défini
+loadConfig();
 
 </script>
 </body>

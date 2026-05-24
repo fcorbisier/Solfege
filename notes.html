@@ -729,7 +729,7 @@ document.addEventListener('keydown',e=>{
 });
 
 // ═══ INIT ══════════════════════════════════
-buildKbd();updateScore();loadConfig();
+buildKbd();updateScore();
 document.getElementById('btn-gen').addEventListener('click',ensureAudio,{once:true});
 
 // Relancer l'AudioContext si suspendu — appelé avant chaque lecture
@@ -838,6 +838,9 @@ document.addEventListener('input', e => {
   if (e.target.type === 'range') saveConfig();
 });
 
+
+// Charger la config après que tout soit défini
+loadConfig();
 </script>
 </body>
 </html>

@@ -1370,7 +1370,7 @@ document.addEventListener('keydown',e=>{
 });
 document.addEventListener('change',e=>{if(e.target.id?.startsWith('tog-'))buildKbd();});
 
-buildToggles();buildKbd();loadProgress();loadConfig();updateScore();
+buildToggles();buildKbd();loadProgress();updateScore();
 
 // Toggle métronome — animation visuelle
 const metroCheck=document.getElementById('metro-on');
@@ -1751,6 +1751,9 @@ document.addEventListener('input', e => {
   if (e.target.type === 'range') saveConfig();
 });
 
+
+// Charger la config après que tout soit défini
+loadConfig();
 </script>
 </body>
 </html>
