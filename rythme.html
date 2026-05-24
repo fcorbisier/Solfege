@@ -348,31 +348,37 @@ function buildToggles(){
     if(!first){const sep=document.createElement('div');sep.style.cssText='width:1px;height:36px;background:var(--border);align-self:center;opacity:.5';el.appendChild(sep);}
     first=false;
     grps.forEach(grp=>{
-      const wrap=document.createElement('div');wrap.className='ftog';
       const col=grp.cat==='s'?'var(--accent2)':'var(--text)';
-      const lbl=document.createElement('label');
-      lbl.style.cssText=`display:flex;flex-direction:column;align-items:center;gap:.2rem;padding:.25rem .35rem;border-radius:6px;border:1.5px solid var(--border);cursor:pointer;font-size:.48rem;color:var(--muted);transition:all .12s;min-width:38px;text-align:center`;
-      const chk=document.createElement('input');chk.type='checkbox';chk.id='tog-'+grp.id;
-      chk.checked=DEFAULT_ON.has(grp.id);chk.style.display='none';
-      chk.addEventListener('change',()=>{
-        lbl.style.borderColor=chk.checked?'var(--accent)':'var(--border)';
-        lbl.style.color=chk.checked?'var(--accent)':'var(--muted)';
+      const on=DEFAULT_ON.has(grp.id);
+      // Stocker l'état dans un objet local (pas de checkbox caché)
+      const state={checked:on};
+      const btn=document.createElement('div');
+      btn.style.cssText=`display:flex;flex-direction:column;align-items:center;gap:.2rem;
+        padding:.25rem .35rem;border-radius:6px;border:1.5px solid ${on?'var(--accent)':'var(--border)'};
+        cursor:pointer;font-size:.48rem;color:${on?'var(--accent)':'var(--muted)'};
+        transition:all .12s;min-width:38px;text-align:center;user-select:none`;
+      btn.id='tog-'+grp.id;
+      btn.dataset.checked=on?'1':'0';
+      btn.innerHTML=svgFig(grp.id,col,32,44)+`<span>${grp.label}</span>`;
+      btn.onclick=()=>{
+        const nowOn=btn.dataset.checked==='1';
+        btn.dataset.checked=nowOn?'0':'1';
+        btn.style.borderColor=nowOn?'var(--border)':'var(--accent)';
+        btn.style.color=nowOn?'var(--muted)':'var(--accent)';
         buildFigKbd();
-      });
-      lbl.innerHTML=svgFig(grp.id,col,32,44)+`<span>${grp.label}</span>`;
-      if(DEFAULT_ON.has(grp.id)){lbl.style.borderColor='var(--accent)';lbl.style.color='var(--accent)';}
-      wrap.appendChild(chk);wrap.appendChild(lbl);el.appendChild(wrap);
+      };
+      el.appendChild(btn);
     });
   });
 }
 
-function activeGroups(){return GROUPS.filter(g=>document.getElementById('tog-'+g.id)?.checked);}
+function activeGroups(){return GROUPS.filter(g=>document.getElementById('tog-'+g.id)?.dataset.checked==='1');}
 
 function buildFigKbd(){
   const el=document.getElementById('fig-kbd');el.innerHTML='';
   let first=true;
   ['n','g','s'].forEach(cat=>{
-    const active=GROUPS.filter(g=>g.cat===cat&&document.getElementById('tog-'+g.id)?.checked);
+    const active=GROUPS.filter(g=>g.cat===cat&&document.getElementById('tog-'+g.id)?.dataset.checked==='1');
     if(!active.length)return;
     if(!first){const sep=document.createElement('div');sep.style.cssText='width:1px;height:40px;background:var(--border);align-self:center;opacity:.5;flex-shrink:0';el.appendChild(sep);}
     first=false;
@@ -453,6 +459,10 @@ function playRhythm(){
   for(let i=0;i<meter;i++){click(t,i===0);t+=beat;}t+=beat*.2;
   const seqStart=t;
   const total=currentSeq.reduce((s,id)=>s+(G(id)?.beats||0),0);
+  // Métronome continu pendant la séquence
+  for(let b=0;b<total;b++){
+    click(seqStart+b*beat, b%meter===0);
+  }
   currentSeq.forEach((id,i)=>{
     const grp=G(id);
     const delay=(seqStart+currentSeq.slice(0,i).reduce((s,x)=>s+(G(x)?.beats||0),0)*beat-ac.currentTime)*1000;
