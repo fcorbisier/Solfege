@@ -120,6 +120,28 @@
     color:var(--text);font-family:'DM Mono',monospace;font-size:.8rem;cursor:pointer;transition:all .12s}
   .ob.sel{border-color:var(--accent);color:var(--accent);background:rgba(200,169,126,.1)}
   .tip{font-size:.63rem;color:var(--muted);margin-top:.7rem;letter-spacing:.04em}
+
+/* ── Thème clair ──────────────────────────────────────────────────────── */
+body.light{
+  --bg:#f5f2ed;--surface:#ffffff;--surface2:#ede8e0;--border:#cec6b8;
+  --accent:#8b5e2a;--text:#1a1510;--muted:#6a5f53;--success:#2d7a2d;--error:#a02020;
+}
+body.light{background-image:none!important;background-color:var(--bg)!important}
+body.light .panel{box-shadow:0 2px 8px rgba(0,0,0,.07)}
+body.light select,body.light input[type=text],body.light input[type=range],
+body.light textarea{background:#fff!important;border-color:#cec6b8!important;color:var(--text)!important}
+body.light .btn{background:#fff!important;border-color:#cec6b8!important;color:var(--text)!important}
+body.light .btn-p{background:var(--accent)!important;color:#fff!important;border-color:var(--accent)!important}
+body.light .kb,.light .note-btn,.light .fkb,.light .dur-btn{background:#fff!important;border-color:#cec6b8!important}
+body.light .staff-wrap,.light .staff-container{background:#fff!important;border-color:#cec6b8!important}
+/* ── Toggle thème ──────────────────────────────────────────────────────── */
+#theme-btn{
+  position:fixed;top:.8rem;right:.8rem;z-index:200;
+  background:var(--surface);border:1px solid var(--border);border-radius:8px;
+  padding:.35rem .65rem;cursor:pointer;font-size:1.1rem;transition:all .2s;
+  line-height:1;box-shadow:0 2px 6px rgba(0,0,0,.15);
+}
+#theme-btn:hover{border-color:var(--accent);transform:scale(1.05)}
 </style>
 </head>
 <body>
@@ -1239,6 +1261,26 @@ setInterval(()=>{
     osc.start();osc.stop(ac.currentTime+0.001);
   }catch(e){}
 },25000);
+
+// ── Thème clair/sombre ─────────────────────────────────────────────────
+(function(){
+  const KEY='solfege_theme';
+  function applyTheme(t){
+    document.body.classList.toggle('light',t==='light');
+    const btn=document.getElementById('theme-btn');
+    if(btn)btn.textContent=t==='light'?'🌙':'☀️';
+  }
+  function toggleTheme(){
+    const t=document.body.classList.contains('light')?'dark':'light';
+    localStorage.setItem(KEY,t);applyTheme(t);
+  }
+  document.addEventListener('DOMContentLoaded',()=>{
+    const saved=localStorage.getItem(KEY)||'dark';
+    applyTheme(saved);
+    const btn=document.getElementById('theme-btn');
+    if(btn)btn.onclick=toggleTheme;
+  });
+})();
 </script>
 </body>
 </html>
