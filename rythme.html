@@ -178,6 +178,15 @@ input[type=range]{padding:.2rem 0;accent-color:var(--accent)}
       <button class="btn" id="btn-play" onclick="playRhythm()" disabled>▶ Écouter</button>
       <button class="btn" id="btn-reveal" onclick="revealAll()" disabled>◎ Révéler</button>
     </div>
+    <!-- Option métronome -->
+    <div style="display:flex;align-items:center;gap:.6rem;margin-top:.6rem">
+      <label style="position:relative;display:inline-block;width:36px;height:20px;cursor:pointer;flex-shrink:0">
+        <input type="checkbox" id="metro-on" checked style="opacity:0;width:0;height:0">
+        <span id="metro-slider" style="position:absolute;inset:0;background:var(--accent);border-radius:20px;transition:.2s"></span>
+        <span id="metro-knob" style="position:absolute;height:14px;width:14px;left:19px;bottom:3px;background:var(--bg);border-radius:50%;transition:.2s"></span>
+      </label>
+      <span style="font-size:.65rem;color:var(--muted)">Métronome pendant la lecture</span>
+    </div>
     <div class="tip">[Espace] Rejouer · [Entrée] Vérifier</div>
   </div>
 
@@ -459,9 +468,11 @@ function playRhythm(){
   for(let i=0;i<meter;i++){click(t,i===0);t+=beat;}t+=beat*.2;
   const seqStart=t;
   const total=currentSeq.reduce((s,id)=>s+(G(id)?.beats||0),0);
-  // Métronome continu pendant la séquence
-  for(let b=0;b<total;b++){
-    click(seqStart+b*beat, b%meter===0);
+  // Métronome continu pendant la séquence (si activé)
+  if(document.getElementById('metro-on').checked){
+    for(let b=0;b<total;b++){
+      click(seqStart+b*beat, b%meter===0);
+    }
   }
   currentSeq.forEach((id,i)=>{
     const grp=G(id);
@@ -544,6 +555,16 @@ document.addEventListener('keydown',e=>{
 });
 buildToggles();buildFigKbd();updateScore();
 document.getElementById('btn-gen').addEventListener('click',ensureAudio,{once:true});
+
+// Toggle métronome
+const metroChk=document.getElementById('metro-on');
+const metroSlider=document.getElementById('metro-slider');
+const metroKnob=document.getElementById('metro-knob');
+metroChk.addEventListener('change',()=>{
+  metroSlider.style.background=metroChk.checked?'var(--accent)':'var(--border)';
+  metroKnob.style.left=metroChk.checked?'19px':'3px';
+  metroKnob.style.background=metroChk.checked?'var(--bg)':'var(--muted)';
+});
 
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='visible'&&ready&&Tone){
