@@ -369,7 +369,8 @@ function loadCustom(){
   document.getElementById('btn-reveal').disabled=false;
   document.getElementById('btn-ref').disabled=false;
   buildKbd();
-  setTimeout(playSeq,300);
+  // Attendre que le sampler soit prêt avant de jouer
+  ensureAudio().then(()=>setTimeout(playSeq,300));
 }
 
 // ═══ LECTURE ═══════════════════════════════

@@ -132,7 +132,7 @@
 
 <header>
   <h1>Dictée de Solfège</h1>
-  <p>Steinway Grand Piano · Entraînement à l'oreille · <span style="color:var(--border)">v3.0</span></p>
+  <p>Steinway Grand Piano · Entraînement à l'oreille · <span style="color:var(--border)">v3.1</span></p>
 </header>
 
 <div class="layout">
@@ -691,7 +691,7 @@ function loadCustom() {
   document.getElementById('btn-play').disabled = false;
   document.getElementById('btn-reveal').disabled = false;
   document.getElementById('btn-ref').disabled = false;
-  setTimeout(playSeq, 300);
+  ensureSampler().then(() => setTimeout(playSeq, 300));
 }
 
 // ── Portée musicale SVG ────────────────────────────────────────────────────────
@@ -870,7 +870,7 @@ function buildKbd() {
 function addNote(note) {
   ans.push(note);
   renderAns(null);
-  playPianoNote(note, octave, '4n');
+  if (samplerReady) playPianoNote(note, octave, '4n');
 }
 
 function renderAns(results) {
