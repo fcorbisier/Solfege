@@ -142,6 +142,22 @@ body.light .staff-wrap,.light .staff-container{background:#fff!important;border-
   line-height:1;box-shadow:0 2px 6px rgba(0,0,0,.15);
 }
 #theme-btn:hover{border-color:var(--accent);transform:scale(1.05)}
+
+/* ── Smartphone ──────────────────────────────────────────────────────── */
+@media(max-width:600px){
+  body{padding:1rem .6rem}
+  header h1{font-size:1.4rem}
+  .layout{gap:.75rem}
+  .panel{padding:.9rem .75rem}
+  .staff-wrap{padding:.4rem;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .btn{padding:.6rem .9rem;font-size:.8rem}
+  .btn-sm{padding:.5rem .8rem;font-size:.75rem}
+  .kb,.note-btn{padding:.7rem 1rem!important;font-size:1rem!important;min-width:44px;min-height:44px}
+  .ans-notes{min-height:52px}
+  .tip{display:none}
+  #theme-btn{top:.5rem;right:.5rem;padding:.3rem .55rem;font-size:1rem}
+  .back{top:.5rem;left:.5rem}
+}
 </style>
 </head>
 <body>
@@ -181,7 +197,7 @@ body.light .staff-wrap,.light .staff-container{background:#fff!important;border-
         <div class="rl"><span>40</span><span id="tv">72</span><span>160</span></div>
       </div>
       <div class="sg"><label>Longueur</label>
-        <input type="range" id="length" min="2" max="10" value="4">
+        <input type="range" id="length" min="2" max="16" value="4">
         <div class="rl"><span>2</span><span id="lv">4</span><span>10</span></div>
       </div>
       <div class="sg"><label>Octave</label>
@@ -790,7 +806,7 @@ function renderNote(note, oct, x, hidden, active, result) {
     }
 
     // Nom de la note en dessous
-    svg += `<text x="${x}" y="108" text-anchor="middle" font-size="9" font-family="DM Mono,monospace" fill="${col}" opacity=".7">${cap(note)}</text>`;
+    svg += `<text x="${x}" y="108" text-anchor="middle" font-size="${window.innerWidth<=600?12:9}" font-family="DM Mono,monospace" fill="${col}" opacity=".8">${cap(note)}</text>`;
   }
 
   svg += `</g>`;

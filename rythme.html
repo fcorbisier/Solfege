@@ -134,6 +134,42 @@ body.light .ftog label{
   border-color:#cec6b8!important;
 }
 body.light .fkb{background:#fff!important;border-color:#cec6b8!important;color:#1a1510!important}
+
+/* ── Smartphone ──────────────────────────────────────────────────────── */
+@media(max-width:600px){
+  body{padding:1rem .6rem}
+  header h1{font-size:1.4rem}
+  .layout{gap:.75rem}
+  .panel{padding:.9rem .75rem}
+  /* Portée SVG — plus grande sur mobile */
+  .staff-wrap{padding:.4rem}
+  #staff-svg{min-width:100%!important;height:150px!important}
+  /* Noms des notes — agrandis via transform sur le SVG */
+  .staff-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  /* Clavier de réponse — touches plus grandes */
+  .kb{padding:.7rem 1rem!important;font-size:1rem!important;min-width:44px;min-height:44px}
+  .note-btn{padding:.7rem 1rem!important;font-size:1rem!important;min-width:44px;min-height:44px}
+  /* Boutons contrôle */
+  .btn{padding:.6rem .9rem;font-size:.8rem}
+  .btn-sm{padding:.5rem .8rem;font-size:.75rem}
+  /* Réponse */
+  .ans-notes{min-height:52px}
+  .an{font-size:1rem!important;padding:.4rem .8rem!important}
+  /* Config col */
+  .cfg{gap:.65rem}
+  select,input[type=text]{font-size:.9rem;padding:.5rem .7rem}
+  /* Score */
+  #sc-ok,#sc-t,#sc-p{font-size:1.8rem!important}
+  /* Tip raccourcis — caché sur mobile */
+  .tip{display:none}
+  /* Bouton thème */
+  #theme-btn{top:.5rem;right:.5rem;padding:.3rem .55rem;font-size:1rem}
+  /* Lien retour */
+  .back{top:.5rem;left:.5rem}
+  /* Sélecteur notes actives */
+  .notes-sel{gap:.25rem}
+  .nt label{width:40px!important;height:40px!important;font-size:.85rem!important}
+}
 </style>
 </head>
 <body>
@@ -183,10 +219,7 @@ body.light .fkb{background:#fff!important;border-color:#cec6b8!important;color:#
         <label>Son</label>
         <select id="sound-type" onchange="onSoundTypeChange()">
           <option value="piano">🎹 Piano</option>
-          <option value="wood">🪵 Wood block</option>
           <option value="snare">🥁 Caisse claire</option>
-          <option value="click">🎯 Click métronome</option>
-          <option value="voice">🗣 Voix (ta)</option>
         </select>
       </div>
       <div id="piano-note-row">
@@ -260,6 +293,7 @@ body.light .fkb{background:#fff!important;border-color:#cec6b8!important;color:#
     <div class="fig-kbd" id="fig-kbd" style="margin-top:.75rem"></div>
     <div style="display:flex;gap:.5rem;margin-top:.75rem">
       <button class="btn btn-p btn-sm" onclick="check()">✓ Vérifier</button>
+      <button class="btn btn-sm" onclick="testAns()">▶ Tester</button>
       <button class="btn btn-sm" onclick="undoAns()">↩ Annuler</button>
       <button class="btn btn-sm" onclick="clearAns()">✗ Effacer</button>
     </div>
@@ -673,6 +707,19 @@ function playRhythm(){
 
 // ═══ RÉPONSE ═══════════════════════════════
 function totalB(arr){return arr.reduce((s,id)=>s+(G(id)?.beats||0),0);}
+function testAns(){
+  if(!userAns.length||!ready)return;
+  resumeAudio();
+  const ac=Tone.getContext().rawContext;
+  const beat=60/+document.getElementById('tempo').value;
+  const t0=ac.currentTime+0.2;
+  let cursor=0;
+  userAns.forEach(id=>{
+    const grp=G(id);if(!grp)return;
+    playGrp(grp, t0+cursor*beat);
+    cursor+=grp.beats;
+  });
+}
 function addAns(id){
   const target=getMeter()*getBars();
   if(totalB(userAns)+(G(id)?.beats||0)>target+.001)return;

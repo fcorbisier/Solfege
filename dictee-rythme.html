@@ -53,6 +53,24 @@ body.light .ftog label{
   border-color:#cec6b8!important;
 }
 body.light .fkb{background:#fff!important;border-color:#cec6b8!important;color:#1a1510!important}
+
+/* ── Smartphone ──────────────────────────────────────────────────────── */
+@media(max-width:600px){
+  body{padding:1rem .6rem}
+  header h1{font-size:1.4rem}
+  .layout{gap:.75rem}
+  .panel{padding:.9rem .75rem}
+  .staff-wrap{padding:.4rem;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .staff{gap:3px}
+  .btn{padding:.6rem .9rem;font-size:.8rem}
+  .btn-sm{padding:.5rem .8rem;font-size:.75rem}
+  .fkb{min-width:42px!important;padding:.3rem .35rem!important}
+  .ans-display{min-height:52px}
+  .tip{display:none}
+  #theme-btn{top:.5rem;right:.5rem;padding:.3rem .55rem;font-size:1rem}
+  .back{top:.5rem;left:.5rem}
+  .fig-lbl{font-size:.52rem!important}
+}
 </style>
 <style>
 :root{--bg:#0e0e12;--surface:#16161e;--surface2:#1e1e2a;--border:#2a2a3a;--accent:#c8a97e;--accent2:#7eb8c8;--text:#e8e4d9;--muted:#6b6880;--success:#7ec87e;--error:#c87e7e;}
@@ -216,10 +234,7 @@ input[type=range]{padding:.2rem 0;accent-color:var(--accent)}
       <div class="cg"><label>Son</label>
         <select id="sound-type" onchange="onSoundTypeChange()">
           <option value="piano">🎹 Piano</option>
-          <option value="wood">🪵 Wood block</option>
           <option value="snare">🥁 Caisse claire</option>
-          <option value="click">🎯 Click métronome</option>
-          <option value="voice">🗣 Voix (ta)</option>
         </select>
       </div>
       <div class="cg" id="piano-note-row"><label>Note piano</label>
@@ -373,6 +388,7 @@ input[type=range]{padding:.2rem 0;accent-color:var(--accent)}
     <div class="ans-kbd" id="ans-kbd" style="margin-top:.75rem"></div>
     <div style="display:flex;gap:.5rem;margin-top:.75rem">
       <button class="btn btn-p btn-sm" onclick="checkAnswer()">✓ Vérifier</button>
+      <button class="btn btn-sm" onclick="testAns()">▶ Tester</button>
       <button class="btn btn-sm" onclick="clearAns()">✗ Effacer</button>
       <button class="btn btn-sm" onclick="undoAns()">↩ Annuler</button>
     </div>
@@ -1173,6 +1189,19 @@ function renderAns(results){
 function updateBL(){
   const left=Math.round((targetB()-totalB(userAns))*4)/4;
   document.getElementById('beats-left').textContent=left>0?`(${left} temps restant${left>1?'s':''})` :'';
+}
+function testAns(){
+  if(!userAns.length||!samplerReady)return;
+  resumeAudio();
+  const ac=getAC();
+  const beat=60/getTempo();
+  const t0=ac.currentTime+0.2;
+  let cursor=0;
+  userAns.forEach(id=>{
+    const grp=G(id);if(!grp)return;
+    playGrp(grp, t0+cursor*beat, beat);
+    cursor+=grp.beats;
+  });
 }
 function clearAns(){userAns=[];renderAns(null);updateBL();document.getElementById('result').className='result';}
 function undoAns(){userAns.pop();renderAns(null);updateBL();}
