@@ -729,7 +729,7 @@ document.addEventListener('keydown',e=>{
 });
 
 // ═══ INIT ══════════════════════════════════
-buildKbd();updateScore();
+buildKbd();updateScore();loadConfig();
 document.getElementById('btn-gen').addEventListener('click',ensureAudio,{once:true});
 
 // Relancer l'AudioContext si suspendu — appelé avant chaque lecture
@@ -832,7 +832,7 @@ function resetConfig() {
 // Auto-save sur tout changement dans la config
 document.addEventListener('change', e => {
   const cfg = document.querySelector('.cfg, .cg, #config-panel');
-  if (e.target.closest ? e.target.closest('.cfg, .panel, form') : true) saveConfig();
+  saveConfig();
 });
 document.addEventListener('input', e => {
   if (e.target.type === 'range') saveConfig();

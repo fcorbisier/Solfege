@@ -847,7 +847,7 @@ document.addEventListener('keydown',e=>{
   if(e.key===' '){e.preventDefault();playRhythm();}
   else if(e.key==='Enter'){e.preventDefault();check();}
 });
-buildToggles();buildFigKbd();updateScore();
+buildToggles();buildFigKbd();updateScore();loadConfig();
 document.getElementById('btn-gen').addEventListener('click',ensureAudio,{once:true});
 
 // Toggle métronome
@@ -957,13 +957,8 @@ function resetConfig() {
 }
 
 // Auto-save sur tout changement dans la config
-document.addEventListener('change', e => {
-  const cfg = document.querySelector('.cfg, .cg, #config-panel');
-  if (e.target.closest ? e.target.closest('.cfg, .panel, form') : true) saveConfig();
-});
-document.addEventListener('input', e => {
-  if (e.target.type === 'range') saveConfig();
-});
+document.addEventListener('change', e => { saveConfig(); });
+document.addEventListener('input', e => { if(e.target.type==='range') saveConfig(); });
 
 </script>
 </body>
