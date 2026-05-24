@@ -761,27 +761,6 @@ function playRhythm(){
     cursor+=grp.beats;
   });
   console.groupEnd();
-  const total=currentSeq.reduce((s,id)=>s+(G(id)?.beats||0),0);
-
-  if(document.getElementById('metro-on').checked){
-    const totalBeats=currentSeq.reduce((s,id)=>s+(G(id)?.beats||0),0);
-    for(let b=0;b<totalBeats;b++){
-      clickT(seqStart+b*beat, b%meter===0);
-    }
-  }
-
-  let cursor=0;
-  currentSeq.forEach((id,i)=>{
-    const grp=G(id);
-    const tNote=seqStart+cursor*beat;
-    const delayMs=(tNote-tNow)*1000;
-    setTimeout(()=>{
-      document.querySelectorAll('.ncell').forEach(e=>e.style.opacity='');
-      const cell=document.getElementById('nc-'+i);if(cell)cell.style.opacity='1';
-    },delayMs);
-    playGrpT(grp, tNote);
-    cursor+=grp.beats;
-  });
 
   setTimeout(()=>{
     document.querySelectorAll('.ncell').forEach(e=>e.style.opacity='');
