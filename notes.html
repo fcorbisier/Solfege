@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dictée de Notes</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎹</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0e0e12;--surface:#16161e;--surface2:#1e1e2a;--border:#2a2a3a;--accent:#c8a97e;--text:#e8e4d9;--muted:#6b6880;--success:#7ec87e;--error:#c87e7e}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;min-height:100vh;
+  display:flex;flex-direction:column;align-items:center;padding:1.5rem 1rem;
+  background-image:radial-gradient(ellipse 70% 40% at 15% 5%,rgba(200,169,126,.06) 0%,transparent 60%)}
+header{text-align:center;margin-bottom:1.2rem}
+header h1{font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:400;color:var(--accent)}
+header p{color:var(--muted);font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;margin-top:.3rem}
+.back{position:absolute;top:1.2rem;left:1.2rem;font-size:.72rem;color:var(--muted);text-decoration:none;
+  display:flex;align-items:center;gap:.3rem;transition:color .15s}
+.back:hover{color:var(--accent)}
+.layout{width:100%;max-width:1100px;display:grid;grid-template-columns:300px 1fr;gap:1.2rem;align-items:start}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.2rem}
+.pt{font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);
+  margin-bottom:.9rem;display:flex;align-items:center;gap:.5rem}
+.pt::after{content:'';flex:1;height:1px;background:var(--border)}
+.col-left,.col-right{display:flex;flex-direction:column;gap:1.2rem}
+
+/* Config */
+label{display:block;font-size:.6rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.35rem}
+select,input[type=range]{width:100%;background:var(--surface2);border:1px solid var(--border);
+  color:var(--text);font-family:'DM Mono',monospace;font-size:.82rem;padding:.4rem .65rem;
+  border-radius:6px;outline:none;transition:border-color .2s}
+select:focus{border-color:var(--accent)}
+select option{background:var(--surface2)}
+input[type=range]{padding:.2rem 0;accent-color:var(--accent)}
+.rl{display:flex;justify-content:space-between;font-size:.6rem;color:var(--muted);margin-top:.2rem}
+.cfg{display:flex;flex-direction:column;gap:.85rem}
+
+/* Notes selector */
+.notes-sel{display:flex;gap:.35rem;flex-wrap:wrap;margin-top:.5rem}
+.nt input{display:none}
+.nt label{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;
+  border-radius:8px;border:1.5px solid var(--border);cursor:pointer;font-size:.9rem;font-weight:500;
+  transition:all .15s}
+.nt input:checked+label{background:rgba(200,169,126,.12);border-color:currentColor}
+
+/* Octave */
+.ob-row{display:flex;gap:.4rem}
+.ob{padding:.35rem .75rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);
+  color:var(--muted);font-family:'DM Mono',monospace;font-size:.78rem;cursor:pointer;transition:all .12s}
+.ob.sel{border-color:var(--accent);color:var(--accent);background:rgba(200,169,126,.08)}
+
+/* Portée */
+.staff-wrap{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.75rem;overflow-x:auto}
+#staff-svg{display:block;min-width:300px}
+
+/* Boutons */
+.btn{padding:.52rem .95rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);
+  color:var(--text);font-family:'DM Mono',monospace;font-size:.75rem;cursor:pointer;transition:all .14s}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn:active{transform:scale(.97)}
+.btn-p{background:var(--accent);color:var(--bg);border-color:var(--accent);font-weight:500}
+.btn-p:hover{background:#d4b88e;color:var(--bg)}
+.btn-sm{padding:.38rem .75rem;font-size:.7rem}
+.btn:disabled{opacity:.35;cursor:not-allowed;pointer-events:none}
+.controls{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.9rem}
+.tip{font-size:.62rem;color:var(--muted);margin-top:.6rem}
+
+/* Clavier réponse */
+.kbd{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.6rem}
+.kb{padding:.55rem .9rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);
+  font-family:'DM Mono',monospace;font-size:.88rem;font-weight:500;cursor:pointer;transition:all .12s}
+.kb:hover{transform:translateY(-2px)}
+.kb:active{transform:scale(.95)}
+.ans-notes{display:flex;gap:.4rem;flex-wrap:wrap;min-height:44px;padding:.5rem;
+  background:var(--surface2);border:1px solid var(--border);border-radius:8px;align-items:center}
+.an{padding:.3rem .65rem;border-radius:5px;border:1px solid var(--border);font-size:.85rem;cursor:pointer}
+.an.ok{border-color:var(--success);color:var(--success);background:rgba(126,200,126,.1)}
+.an.ko{border-color:var(--error);color:var(--error);background:rgba(200,126,126,.1)}
+.hint{font-size:.75rem;color:var(--muted);font-style:italic}
+.result{padding:.6rem .9rem;border-radius:8px;font-size:.8rem;min-height:2rem;margin-top:.5rem}
+.result.ok{background:rgba(126,200,126,.1);border:1px solid var(--success);color:var(--success)}
+.result.ko{background:rgba(200,126,126,.1);border:1px solid var(--error);color:var(--error)}
+
+/* Indicateur lecture */
+@keyframes pulse{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.8)}}
+.play-ind{display:none;align-items:center;gap:3px;margin-left:.5rem}
+.play-ind.on{display:flex}
+.ba{width:3px;height:10px;border-radius:2px;background:var(--accent);animation:pulse .55s ease-in-out infinite}
+.ba:nth-child(2){animation-delay:.13s}.ba:nth-child(3){animation-delay:.26s}
+
+/* Loading */
+#loading{position:fixed;inset:0;background:rgba(14,14,18,.95);display:none;flex-direction:column;
+  align-items:center;justify-content:center;gap:1rem;z-index:999}
+#loading p{color:var(--accent);font-size:.85rem;letter-spacing:.1em}
+.load-bar-wrap{width:240px;height:3px;background:#2a2a3a;border-radius:2px;overflow:hidden}
+.load-bar{height:100%;width:0%;background:var(--accent);transition:width .3s}
+
+@media(max-width:768px){
+  .layout{grid-template-columns:1fr}
+  .col-right{order:-1}.col-left{order:1}
+}
+</style>
+</head>
+<body>
+
+<a href="home.html" class="back">← Accueil</a>
+
+<div id="loading">
+  <div style="font-size:2.5rem">🎹</div>
+  <p id="load-msg">Chargement du piano…</p>
+  <div class="load-bar-wrap"><div class="load-bar" id="load-bar"></div></div>
+</div>
+
+<header>
+  <h1>Dictée de Notes</h1>
+  <p>Piano Steinway · <span style="color:var(--border)">v1.0</span></p>
+</header>
+
+<div class="layout">
+<div class="col-left">
+
+  <div class="panel">
+    <div class="pt">Configuration</div>
+    <div class="cfg">
+      <div>
+        <label>Mode</label>
+        <select id="mode">
+          <option value="random">Séquence aléatoire</option>
+          <option value="custom">Séquence personnalisée</option>
+        </select>
+      </div>
+      <div id="custom-section" style="display:none">
+        <label>Séquence (ex: do mi sol)</label>
+        <div style="display:flex;gap:.4rem">
+          <input type="text" id="custom-seq" placeholder="do mi sol la"
+            style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);
+            font-family:'DM Mono',monospace;font-size:.82rem;padding:.4rem .65rem;border-radius:6px;outline:none">
+          <button class="btn btn-sm" onclick="loadCustom()">OK</button>
+        </div>
+      </div>
+      <div>
+        <label>Longueur — <span id="lv">4</span> notes</label>
+        <input type="range" id="length" min="1" max="8" value="4" oninput="document.getElementById('lv').textContent=this.value">
+      </div>
+      <div>
+        <label>Tempo — <span id="tv">72</span> BPM</label>
+        <input type="range" id="tempo" min="40" max="160" value="72" oninput="document.getElementById('tv').textContent=this.value">
+      </div>
+      <div>
+        <label>Octave</label>
+        <div class="ob-row">
+          <button class="ob" data-oct="3" onclick="setOct(3)">3</button>
+          <button class="ob sel" data-oct="4" onclick="setOct(4)">4</button>
+          <button class="ob" data-oct="5" onclick="setOct(5)">5</button>
+        </div>
+      </div>
+      <div>
+        <label>Notes actives</label>
+        <div class="notes-sel">
+          <div class="nt"><input type="checkbox" id="n-do" checked><label for="n-do" style="color:#e07070">Do</label></div>
+          <div class="nt"><input type="checkbox" id="n-re" checked><label for="n-re" style="color:#e09550">Ré</label></div>
+          <div class="nt"><input type="checkbox" id="n-mi" checked><label for="n-mi" style="color:#d4b840">Mi</label></div>
+          <div class="nt"><input type="checkbox" id="n-fa" checked><label for="n-fa" style="color:#70b870">Fa</label></div>
+          <div class="nt"><input type="checkbox" id="n-sol" checked><label for="n-sol" style="color:#5090d0">Sol</label></div>
+          <div class="nt"><input type="checkbox" id="n-la" checked><label for="n-la" style="color:#8060c0">La</label></div>
+          <div class="nt"><input type="checkbox" id="n-si" checked><label for="n-si" style="color:#c060a0">Si</label></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Score -->
+  <div class="panel">
+    <div class="pt">Score</div>
+    <div style="display:flex;justify-content:space-around;text-align:center">
+      <div><div style="font-size:1.6rem;font-family:'Playfair Display',serif" id="sc-ok" style="color:var(--success)">0</div><div style="font-size:.62rem;color:var(--muted)">Réussis</div></div>
+      <div><div style="font-size:1.6rem;font-family:'Playfair Display',serif" id="sc-t">0</div><div style="font-size:.62rem;color:var(--muted)">Total</div></div>
+      <div><div style="font-size:1.6rem;font-family:'Playfair Display',serif" id="sc-p">—</div><div style="font-size:.62rem;color:var(--muted)">Précision</div></div>
+    </div>
+    <div id="dots" style="display:flex;gap:3px;flex-wrap:wrap;margin-top:.75rem"></div>
+    <button class="btn btn-sm" style="margin-top:.75rem;color:var(--muted)" onclick="resetScore()">Réinitialiser</button>
+  </div>
+
+</div><!-- /col-left -->
+<div class="col-right">
+
+  <!-- Portée -->
+  <div class="panel">
+    <div class="pt">
+      Séquence
+      <div class="play-ind" id="play-ind"><div class="ba"></div><div class="ba"></div><div class="ba"></div></div>
+    </div>
+    <div class="staff-wrap">
+      <svg id="staff-svg" width="100%" height="120" viewBox="0 0 600 120" preserveAspectRatio="xMinYMid meet" style="min-width:300px">
+        <defs>
+          <filter id="note-blur"><feGaussianBlur stdDeviation="8"/></filter>
+          <filter id="note-glow"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        </defs>
+        <g id="staff-lines"></g>
+        <g id="staff-clef"></g>
+        <g id="staff-notes"></g>
+        <text id="staff-hint" x="300" y="65" text-anchor="middle" font-size="12"
+          font-family="DM Mono,monospace" fill="var(--muted)" font-style="italic">Générez une séquence</text>
+      </svg>
+    </div>
+    <div class="controls">
+      <button class="btn btn-p" id="btn-gen" onclick="generate()">⟳ Générer</button>
+      <button class="btn" id="btn-play" onclick="playSeq()" disabled>▶ Écouter</button>
+      <button class="btn" id="btn-reveal" onclick="reveal()" disabled>◎ Révéler</button>
+      <button class="btn btn-sm" id="btn-ref" onclick="playRef()" disabled>♩ Do</button>
+    </div>
+    <div class="tip">[Espace] Rejouer · [Entrée] Vérifier · [⌫] Annuler</div>
+  </div>
+
+  <!-- Réponse -->
+  <div class="panel">
+    <div class="pt">Votre réponse</div>
+    <div class="ans-notes" id="ans-notes"><span class="hint">Cliquez sur les touches</span></div>
+    <div class="kbd" id="kbd"></div>
+    <div style="display:flex;gap:.5rem;margin-top:.75rem">
+      <button class="btn btn-p btn-sm" onclick="check()">✓ Vérifier</button>
+      <button class="btn btn-sm" onclick="undoAns()">↩ Annuler</button>
+      <button class="btn btn-sm" onclick="clearAns()">✗ Effacer</button>
+    </div>
+    <div class="result" id="result"></div>
+  </div>
+
+</div><!-- /col-right -->
+</div><!-- /layout -->
+
+<script>
+// ═══ DONNÉES ═══════════════════════════════
+const NOTES=['do','ré','mi','fa','sol','la','si'];
+const COLORS={do:'#e07070',ré:'#e09550',mi:'#d4b840',fa:'#70b870',sol:'#5090d0',la:'#8060c0',si:'#c060a0'};
+const ALIASES={re:'ré',ré:'ré',do:'do',mi:'mi',fa:'fa',sol:'sol',la:'la',si:'si'};
+const NOTE_MAP={do:{3:'C3',4:'C4',5:'C5'},ré:{3:'D3',4:'D4',5:'D5'},mi:{3:'E3',4:'E4',5:'E5'},
+  fa:{3:'F3',4:'F4',5:'F5'},sol:{3:'G3',4:'G4',5:'G5'},la:{3:'A3',4:'A4',5:'A5'},si:{3:'B3',4:'B4',5:'B5'}};
+const NY4={do:90,ré:84,mi:78,fa:72,sol:66,la:60,si:54};
+const NY5={do:48,ré:42,mi:36,fa:30,sol:24};
+const NY3={do:114,ré:108,mi:102,fa:96,sol:90,la:84,si:78};
+function noteY(n,o){return o===5?(NY5[n]??36):o===3?(NY3[n]??90):(NY4[n]??66);}
+function cap(s){return s.charAt(0).toUpperCase()+s.slice(1);}
+
+// ═══ STATE ═════════════════════════════════
+let oct=4, seq=[], ans=[], revealed=false, playing=false;
+let score={t:0,ok:0,h:[]};
+let sampler=null, ready=false, Tone=null;
+
+// ═══ AUDIO ═════════════════════════════════
+async function loadTone(){
+  if(Tone)return;
+  await new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js';
+    s.onload=res;s.onerror=rej;document.head.appendChild(s);
+  });
+  Tone=window.Tone;
+}
+async function ensureAudio(){
+  if(ready)return;
+  document.getElementById('loading').style.display='flex';
+  await loadTone();await Tone.start();
+  await new Promise(resolve=>{
+    sampler=new Tone.Sampler({
+      urls:{'A0':'A0.mp3','C1':'C1.mp3','D#1':'Ds1.mp3','F#1':'Fs1.mp3',
+        'A1':'A1.mp3','C2':'C2.mp3','D#2':'Ds2.mp3','F#2':'Fs2.mp3',
+        'A2':'A2.mp3','C3':'C3.mp3','D#3':'Ds3.mp3','F#3':'Fs3.mp3',
+        'A3':'A3.mp3','C4':'C4.mp3','D#4':'Ds4.mp3','F#4':'Fs4.mp3',
+        'A4':'A4.mp3','C5':'C5.mp3','D#5':'Ds5.mp3','F#5':'Fs5.mp3',
+        'A5':'A5.mp3','C6':'C6.mp3'},
+      baseUrl:'https://tonejs.github.io/audio/salamander/',release:1,
+    }).toDestination();
+    let pct=0;const iv=setInterval(()=>{pct=Math.min(pct+2,88);document.getElementById('load-bar').style.width=pct+'%';if(pct>=88)clearInterval(iv);},100);
+    Tone.loaded().then(()=>{clearInterval(iv);document.getElementById('load-bar').style.width='100%';
+      setTimeout(()=>{document.getElementById('loading').style.display='none';resolve();},400);
+    }).catch(()=>{document.getElementById('loading').style.display='none';resolve();});
+  });
+  ready=true;
+}
+function piano(note,o,dur){
+  if(!sampler||!sampler.loaded)return;
+  const m=NOTE_MAP[note]?.[o];if(!m)return;
+  sampler.triggerAttackRelease(m,dur);
+}
+
+// ═══ PORTÉE SVG ════════════════════════════
+function buildStaff(results){
+  const hint=document.getElementById('staff-hint');
+  const lines=document.getElementById('staff-lines');
+  const clefEl=document.getElementById('staff-clef');
+  const notesEl=document.getElementById('staff-notes');
+  const w=Math.max(600,105+seq.length*58+30);
+  document.getElementById('staff-svg').setAttribute('viewBox',`0 0 ${w} 120`);
+  lines.innerHTML=[30,42,54,66,78].map(y=>`<line x1="8" y1="${y}" x2="${w-10}" y2="${y}" stroke="var(--muted)" stroke-width="1" opacity=".4"/>`).join('')
+    +`<line x1="8" y1="30" x2="8" y2="78" stroke="var(--text)" stroke-width="2" opacity=".5"/>`;
+  clefEl.innerHTML=`<text x="12" y="92" font-size="80" font-family="serif" fill="var(--text)" opacity=".75">𝄞</text>`;
+  if(!seq.length){hint.style.display='block';notesEl.innerHTML='';return;}
+  hint.style.display='none';
+  const x0=90, sp=Math.min(58,(w-x0-20)/Math.max(seq.length,1));
+  let svg='';
+  seq.forEach((note,i)=>{
+    const x=x0+i*sp+sp/2;
+    const y=noteY(note,oct);
+    const up=y>=54;
+    const col=results?(results[i]?'var(--success)':'var(--error)'):(COLORS[note]||'var(--text)');
+    const hidden=!revealed&&!results;
+    svg+=`<g class="sn" data-i="${i}" style="filter:${hidden?'url(#note-glow)':''};opacity:${hidden?.15:1}">`;
+    if(hidden){
+      // Au centre, flou total
+      svg+=`<g filter="url(#note-blur)" opacity=".18">`;
+      svg+=`<ellipse cx="${x}" cy="54" rx="7" ry="5" transform="rotate(-15,${x},54)" fill="var(--muted)"/>`;
+      svg+=`<line x1="${x+6}" y1="52" x2="${x+6}" y2="22" stroke="var(--muted)" stroke-width="1.5"/>`;
+      svg+=`</g>`;
+    } else {
+      if(note==='do'&&oct===4) svg+=`<line x1="${x-10}" y1="90" x2="${x+10}" y2="90" stroke="${col}" stroke-width="1.2" opacity=".7"/>`;
+      if(note==='do'&&oct===5) svg+=`<line x1="${x-10}" y1="48" x2="${x+10}" y2="48" stroke="${col}" stroke-width="1.2" opacity=".7"/>`;
+      svg+=`<ellipse cx="${x}" cy="${y}" rx="7" ry="5" transform="rotate(-15,${x},${y})" fill="${col}"/>`;
+      if(up) svg+=`<line x1="${x+6}" y1="${y-2}" x2="${x+6}" y2="${y-33}" stroke="${col}" stroke-width="1.5"/>`;
+      else   svg+=`<line x1="${x-6}" y1="${y+2}" x2="${x-6}" y2="${y+33}" stroke="${col}" stroke-width="1.5"/>`;
+      svg+=`<text x="${x}" y="110" text-anchor="middle" font-size="9" font-family="DM Mono,monospace" fill="${col}" opacity=".65">${cap(note)}</text>`;
+    }
+    svg+=`</g>`;
+  });
+  notesEl.innerHTML=svg;
+}
+
+function hlNote(idx){
+  document.querySelectorAll('.sn').forEach((el,i)=>{
+    el.style.filter=i===idx?'url(#note-glow)':'';
+  });
+}
+
+// ═══ GÉNÉRATION ════════════════════════════
+function getActive(){
+  return NOTES.filter(n=>{
+    const id='n-'+(n==='ré'?'re':n);
+    return document.getElementById(id)?.checked;
+  });
+}
+
+async function generate(){
+  await ensureAudio();
+  const active=getActive();
+  if(!active.length){alert('Sélectionnez au moins une note.');return;}
+  const len=+document.getElementById('length').value;
+  seq=Array.from({length:len},()=>active[Math.floor(Math.random()*active.length)]);
+  ans=[];revealed=false;
+  buildStaff(null);
+  renderAns(null);
+  document.getElementById('result').className='result';
+  document.getElementById('btn-play').disabled=false;
+  document.getElementById('btn-reveal').disabled=false;
+  document.getElementById('btn-ref').disabled=false;
+  buildKbd();
+  setTimeout(playSeq,300);
+}
+
+function loadCustom(){
+  const raw=document.getElementById('custom-seq').value.trim().toLowerCase();
+  const parts=raw.split(/\s+/);
+  const parsed=[];
+  for(const p of parts){const n=ALIASES[p];if(n)parsed.push(n);else{alert(`Note invalide: "${p}"`);return;}}
+  if(!parsed.length)return;
+  seq=parsed;ans=[];revealed=false;
+  buildStaff(null);renderAns(null);
+  document.getElementById('result').className='result';
+  document.getElementById('btn-play').disabled=false;
+  document.getElementById('btn-reveal').disabled=false;
+  document.getElementById('btn-ref').disabled=false;
+  buildKbd();
+  setTimeout(playSeq,300);
+}
+
+// ═══ LECTURE ═══════════════════════════════
+function playSeq(){
+  if(playing||!seq.length)return;
+  playing=true;
+  document.getElementById('play-ind').classList.add('on');
+  document.getElementById('btn-play').disabled=true;
+  const beat=60/+document.getElementById('tempo').value;
+  seq.forEach((note,i)=>{
+    setTimeout(()=>{
+      hlNote(i);
+      piano(note,oct,beat*.85+'s');
+    },i*beat*1000);
+  });
+  setTimeout(()=>{
+    hlNote(-1);
+    document.getElementById('play-ind').classList.remove('on');
+    document.getElementById('btn-play').disabled=false;
+    playing=false;
+  },seq.length*beat*1000+600);
+}
+
+function playRef(){piano('do',oct,'2n');}
+
+// ═══ RÉPONSE ═══════════════════════════════
+function buildKbd(){
+  const el=document.getElementById('kbd');el.innerHTML='';
+  NOTES.forEach(note=>{
+    const b=document.createElement('button');b.className='kb';
+    b.textContent=cap(note);b.style.color=COLORS[note];b.style.borderColor=COLORS[note]+'55';
+    b.onclick=()=>addNote(note);el.appendChild(b);
+  });
+}
+function addNote(note){
+  ans.push(note);renderAns(null);
+  piano(note,oct,'4n');
+}
+function renderAns(results){
+  const el=document.getElementById('ans-notes');el.innerHTML='';
+  if(!ans.length){el.innerHTML='<span class="hint">Cliquez sur les touches</span>';return;}
+  ans.forEach((note,i)=>{
+    const s=document.createElement('span');
+    s.className='an'+(results?(results[i]?' ok':' ko'):'');
+    s.style.color=COLORS[note];s.textContent=cap(note);
+    s.onclick=()=>{ans.splice(i,1);renderAns(null);};
+    el.appendChild(s);
+  });
+}
+function clearAns(){ans=[];renderAns(null);document.getElementById('result').className='result';}
+function undoAns(){ans.pop();renderAns(null);}
+function reveal(){revealed=true;buildStaff(null);}
+
+function check(){
+  if(!seq.length)return;
+  if(ans.length!==seq.length){showResult(false,`${ans.length} note(s) saisie(s), ${seq.length} attendue(s).`);return;}
+  const res=seq.map((n,i)=>n===ans[i]);
+  const ok=res.every(Boolean);
+  renderAns(res);revealed=true;buildStaff(res);
+  score.t++;if(ok){score.ok++;score.h.push('ok');}else score.h.push('ko');
+  updateScore();
+  ok?showResult(true,'✓ Parfait !'):showResult(false,`✗ C'était : ${seq.map(cap).join(' — ')}`);
+}
+function showResult(ok,msg){const el=document.getElementById('result');el.className='result '+(ok?'ok':'ko');el.textContent=msg;}
+
+// ═══ SCORE ═════════════════════════════════
+function updateScore(){
+  document.getElementById('sc-t').textContent=score.t;
+  document.getElementById('sc-ok').textContent=score.ok;
+  document.getElementById('sc-p').textContent=score.t?Math.round(score.ok/score.t*100)+'%':'—';
+  const el=document.getElementById('dots');el.innerHTML='';
+  score.h.slice(-20).forEach(h=>{
+    const d=document.createElement('div');
+    d.style.cssText=`width:8px;height:8px;border-radius:50%;background:${h==='ok'?'var(--success)':'var(--error)'}`;
+    el.appendChild(d);
+  });
+}
+function resetScore(){score={t:0,ok:0,h:[]};updateScore();}
+
+// ═══ OCT / MODE ════════════════════════════
+function setOct(o){
+  oct=o;document.querySelectorAll('.ob').forEach(b=>b.classList.toggle('sel',+b.dataset.oct===o));
+  if(seq.length&&revealed)buildStaff(null);
+}
+document.getElementById('mode').onchange=e=>{
+  document.getElementById('custom-section').style.display=e.target.value==='custom'?'block':'none';
+};
+
+// ═══ CLAVIER ═══════════════════════════════
+const KMAP={d:'do',r:'ré',m:'mi',f:'fa',s:'sol',l:'la',b:'si'};
+document.addEventListener('keydown',e=>{
+  if(['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))return;
+  if(e.key===' '){e.preventDefault();playSeq();}
+  else if(e.key==='Enter'){e.preventDefault();check();}
+  else if(e.key==='Backspace'){e.preventDefault();undoAns();}
+  else if(KMAP[e.key.toLowerCase()]&&seq.length)addNote(KMAP[e.key.toLowerCase()]);
+});
+
+// ═══ INIT ══════════════════════════════════
+buildKbd();updateScore();
+document.getElementById('btn-gen').addEventListener('click',ensureAudio,{once:true});
+</script>
+</body>
+</html>
