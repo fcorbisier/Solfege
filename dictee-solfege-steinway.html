@@ -132,7 +132,7 @@
 
 <header>
   <h1>Dictée de Solfège</h1>
-  <p>Steinway Grand Piano · Entraînement à l'oreille · <span style="color:var(--border)">v2.7</span></p>
+  <p>Steinway Grand Piano · Entraînement à l'oreille · <span style="color:var(--border)">v3.0</span></p>
 </header>
 
 <div class="layout">
@@ -437,6 +437,7 @@ function playSeq(s) {
   const bpm  = +document.getElementById('tempo').value;
   const beat = 60 / bpm;
   const mode = document.getElementById('mode').value;
+  const ac   = Tone.getContext().rawContext;
 
   function highlightNote(idx, on) {
     const staffNotes = document.querySelectorAll('.staff-note');
@@ -446,6 +447,7 @@ function playSeq(s) {
   }
 
   if (mode === 'chord' || mode === 'interval-sim') {
+    // Arpège + accord : timing court, setTimeout OK ici
     s.forEach((note, i) => {
       setTimeout(() => {
         highlightNote(i, true);
@@ -463,14 +465,19 @@ function playSeq(s) {
       playing = false;
     }, s.length * 150 + 250 + 1500);
   } else {
+    // Mode séquentiel : planifier via l'horloge audio Tone.js
+    const t0 = ac.currentTime + 0.3;
     s.forEach((note, i) => {
+      const tNote = t0 + i * beat;
+      const midiNote = NOTE_MAP[note]?.[octave];
+      if (midiNote) sampler.triggerAttackRelease(midiNote, beat * 0.85, tNote);
+      // Highlight visuel via setTimeout (approx OK pour le visuel)
       setTimeout(() => {
         document.querySelectorAll('.staff-note').forEach(el => el.style.filter='');
         highlightNote(i, true);
-        playPianoNote(note, octave, beat * 0.85 + 's');
-      }, i * beat * 1000);
+      }, (tNote - ac.currentTime) * 1000);
     });
-    const totalMs = s.length * beat * 1000 + 800;
+    const totalMs = (t0 + s.length * beat - ac.currentTime) * 1000 + 300;
     setTimeout(() => {
       document.querySelectorAll('.staff-note').forEach(el => el.style.filter='');
       document.getElementById('play-ind').classList.remove('on');
@@ -1035,7 +1042,25 @@ document.getElementById('mode').onchange = e => {
   const mode = e.target.value;
   document.getElementById('custom-section').style.display  = mode === 'custom'  ? 'block' : 'none';
   document.getElementById('melody-section').style.display  = mode === 'melody'  ? 'block' : 'none';
+  // Masquer le sélecteur de notes et la longueur en mode personnalisé ou mélodie
+  const hideNotes = mode === 'custom' || mode === 'melody';
+  const noteSel = document.querySelector('.notes-sel');
+  if(noteSel) noteSel.closest('div').style.display = hideNotes ? 'none' : 'block';
+  const lenEl = document.getElementById('length');
+  if(lenEl) lenEl.closest('div').style.display = hideNotes ? 'none' : 'block';
   if (seq.length) updateAnswerUI();
+  // Adapter le bouton Générer selon le mode
+  const btn = document.getElementById('btn-generate');
+  if (mode === 'custom') {
+    btn.textContent = '⟳ Charger';
+    btn.onclick = loadCustom;
+  } else if (mode === 'melody') {
+    btn.textContent = '▶ Démarrer mélodie';
+    btn.onclick = generateSequence;
+  } else {
+    btn.textContent = '⟳ Générer';
+    btn.onclick = generateSequence;
+  }
 };
 
 document.querySelectorAll('.ob').forEach(b => b.addEventListener('click', () => {
@@ -1184,6 +1209,16 @@ async function ensureSampler() {
 
 document.getElementById('btn-generate')?.addEventListener('click', ensureSampler, {once: true});
 document.querySelectorAll('.kb').forEach(b => b.addEventListener('click', ensureSampler, {once: true}));
+
+// Relancer l'AudioContext si la page est restée inactive
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'&&samplerReady&&Tone){
+    Tone.getContext().rawContext.resume().catch(()=>{});
+  }
+});
+document.addEventListener('click',()=>{
+  if(samplerReady&&Tone){Tone.getContext().rawContext.resume().catch(()=>{});}
+},{passive:true});
 </script>
 </body>
 </html>

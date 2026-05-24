@@ -534,6 +534,15 @@ document.addEventListener('keydown',e=>{
 });
 buildToggles();buildFigKbd();updateScore();
 document.getElementById('btn-gen').addEventListener('click',ensureAudio,{once:true});
+
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'&&ready&&Tone){
+    Tone.getContext().rawContext.resume().catch(()=>{});
+  }
+});
+document.addEventListener('click',()=>{
+  if(ready&&Tone){Tone.getContext().rawContext.resume().catch(()=>{});}
+},{passive:true});
 </script>
 </body>
 </html>

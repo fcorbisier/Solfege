@@ -152,7 +152,7 @@ input[type=range]{padding:.2rem 0;accent-color:var(--accent)}
 </div>
 <header>
   <h1>Dictée de Rythme</h1>
-  <p>Steinway Grand Piano · Entraînement à l'oreille rythmique · <span style="color:var(--border)">v3.4</span></p>
+  <p>Steinway Grand Piano · Entraînement à l'oreille rythmique · <span style="color:var(--border)">v3.5</span></p>
 </header>
 <div class="layout">
 
@@ -1468,6 +1468,16 @@ document.getElementById('meter').addEventListener('change',e=>{
 document.getElementById('btn-play').addEventListener('click',()=>setTimeout(()=>{if(playing)startBeatAnim();},200));
 document.getElementById('btn-metro').addEventListener('click',()=>setTimeout(()=>{if(playing)startBeatAnim();},200));
 setInterval(()=>{if(!playing&&beatAnimFrame)stopBeatAnim();},300);
+
+// Relancer l'AudioContext si la page est restée inactive
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'&&samplerReady&&Tone){
+    Tone.getContext().rawContext.resume().catch(()=>{});
+  }
+});
+document.addEventListener('click',()=>{
+  if(samplerReady&&Tone){Tone.getContext().rawContext.resume().catch(()=>{});}
+},{passive:true});
 </script>
 </body>
 </html>

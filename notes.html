@@ -132,16 +132,28 @@ input[type=range]{padding:.2rem 0;accent-color:var(--accent)}
       </div>
       <div id="custom-section" style="display:none">
         <label>Séquence (ex: do mi sol)</label>
-        <div style="display:flex;gap:.4rem">
-          <input type="text" id="custom-seq" placeholder="do mi sol la"
-            style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);
-            font-family:'DM Mono',monospace;font-size:.82rem;padding:.4rem .65rem;border-radius:6px;outline:none">
-          <button class="btn btn-sm" onclick="loadCustom()">OK</button>
-        </div>
+        <input type="text" id="custom-seq" placeholder="do mi sol la"
+          style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);
+          font-family:'DM Mono',monospace;font-size:.82rem;padding:.4rem .65rem;border-radius:6px;outline:none">
+        <div style="font-size:.62rem;color:var(--muted);margin-top:.3rem">do ré(re) mi fa sol la si · séparés par des espaces</div>
       </div>
-      <div>
-        <label>Longueur — <span id="lv">4</span> notes</label>
-        <input type="range" id="length" min="1" max="8" value="4" oninput="document.getElementById('lv').textContent=this.value">
+      <div id="random-options">
+        <div>
+          <label>Longueur — <span id="lv">4</span> notes</label>
+          <input type="range" id="length" min="1" max="8" value="4" oninput="document.getElementById('lv').textContent=this.value">
+        </div>
+        <div style="margin-top:.85rem">
+          <label>Notes actives</label>
+          <div class="notes-sel">
+            <div class="nt"><input type="checkbox" id="n-do" checked><label for="n-do" style="color:#e07070">Do</label></div>
+            <div class="nt"><input type="checkbox" id="n-re" checked><label for="n-re" style="color:#e09550">Ré</label></div>
+            <div class="nt"><input type="checkbox" id="n-mi" checked><label for="n-mi" style="color:#d4b840">Mi</label></div>
+            <div class="nt"><input type="checkbox" id="n-fa" checked><label for="n-fa" style="color:#70b870">Fa</label></div>
+            <div class="nt"><input type="checkbox" id="n-sol" checked><label for="n-sol" style="color:#5090d0">Sol</label></div>
+            <div class="nt"><input type="checkbox" id="n-la" checked><label for="n-la" style="color:#8060c0">La</label></div>
+            <div class="nt"><input type="checkbox" id="n-si" checked><label for="n-si" style="color:#c060a0">Si</label></div>
+          </div>
+        </div>
       </div>
       <div>
         <label>Tempo — <span id="tv">72</span> BPM</label>
@@ -153,18 +165,6 @@ input[type=range]{padding:.2rem 0;accent-color:var(--accent)}
           <button class="ob" data-oct="3" onclick="setOct(3)">3</button>
           <button class="ob sel" data-oct="4" onclick="setOct(4)">4</button>
           <button class="ob" data-oct="5" onclick="setOct(5)">5</button>
-        </div>
-      </div>
-      <div>
-        <label>Notes actives</label>
-        <div class="notes-sel">
-          <div class="nt"><input type="checkbox" id="n-do" checked><label for="n-do" style="color:#e07070">Do</label></div>
-          <div class="nt"><input type="checkbox" id="n-re" checked><label for="n-re" style="color:#e09550">Ré</label></div>
-          <div class="nt"><input type="checkbox" id="n-mi" checked><label for="n-mi" style="color:#d4b840">Mi</label></div>
-          <div class="nt"><input type="checkbox" id="n-fa" checked><label for="n-fa" style="color:#70b870">Fa</label></div>
-          <div class="nt"><input type="checkbox" id="n-sol" checked><label for="n-sol" style="color:#5090d0">Sol</label></div>
-          <div class="nt"><input type="checkbox" id="n-la" checked><label for="n-la" style="color:#8060c0">La</label></div>
-          <div class="nt"><input type="checkbox" id="n-si" checked><label for="n-si" style="color:#c060a0">Si</label></div>
         </div>
       </div>
     </div>
@@ -379,18 +379,30 @@ function playSeq(){
   document.getElementById('play-ind').classList.add('on');
   document.getElementById('btn-play').disabled=true;
   const beat=60/+document.getElementById('tempo').value;
+  const ac=Tone.getContext().rawContext;
+  // Délai initial généreux pour éviter la latence au démarrage
+  const t0=ac.currentTime+0.3;
+
   seq.forEach((note,i)=>{
-    setTimeout(()=>{
-      hlNote(i);
-      piano(note,oct,beat*.85+'s');
-    },i*beat*1000);
+    const tNote=t0+i*beat;
+    // Planifier l'audio via l'horloge Tone.js (précis)
+    sampler.triggerAttackRelease(
+      NOTE_MAP[note]?.[oct]||'C4',
+      beat*0.85,
+      tNote
+    );
+    // Planifier le highlight via setTimeout (approximatif mais suffisant pour le visuel)
+    const delayMs=(tNote-ac.currentTime)*1000;
+    setTimeout(()=>hlNote(i), delayMs);
   });
+
+  const totalMs=(t0+seq.length*beat-ac.currentTime)*1000+300;
   setTimeout(()=>{
     hlNote(-1);
     document.getElementById('play-ind').classList.remove('on');
     document.getElementById('btn-play').disabled=false;
     playing=false;
-  },seq.length*beat*1000+600);
+  }, totalMs);
 }
 
 function playRef(){piano('do',oct,'2n');}
@@ -455,7 +467,12 @@ function setOct(o){
   if(seq.length&&revealed)buildStaff(null);
 }
 document.getElementById('mode').onchange=e=>{
-  document.getElementById('custom-section').style.display=e.target.value==='custom'?'block':'none';
+  const custom=e.target.value==='custom';
+  document.getElementById('custom-section').style.display=custom?'block':'none';
+  document.getElementById('random-options').style.display=custom?'none':'block';
+  const btn=document.getElementById('btn-gen');
+  btn.textContent=custom?'⟳ Charger':'⟳ Générer';
+  btn.onclick=custom?loadCustom:generate;
 };
 
 // ═══ CLAVIER ═══════════════════════════════
@@ -471,6 +488,17 @@ document.addEventListener('keydown',e=>{
 // ═══ INIT ══════════════════════════════════
 buildKbd();updateScore();
 document.getElementById('btn-gen').addEventListener('click',ensureAudio,{once:true});
+
+// Relancer l'AudioContext si la page est restée inactive
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'&&ready&&Tone){
+    Tone.getContext().rawContext.resume().catch(()=>{});
+  }
+});
+// Aussi sur le premier clic/tap après inactivité
+document.addEventListener('click',()=>{
+  if(ready&&Tone){Tone.getContext().rawContext.resume().catch(()=>{});}
+},{passive:true});
 </script>
 </body>
 </html>
