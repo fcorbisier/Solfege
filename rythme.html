@@ -724,26 +724,14 @@ function playRhythm(){
 
   const tNow=Tone.now();
   let t=tNow+.2;
-
-  // === TRACES TIMING ===
-  console.group('🎵 playRhythm — timing audit');
-  console.log(`ac.currentTime = ${ac.currentTime.toFixed(4)}`);
-  console.log(`Tone.now()     = ${tNow.toFixed(4)}`);
-  console.log(`Offset Tone-AC = ${(tNow-ac.currentTime).toFixed(4)}s`);
-  console.log(`beat           = ${beat.toFixed(4)}s`);
-
   for(let i=0;i<meter;i++){clickT(t,i===0);t+=beat;}
   const seqStart=t;
-  console.log(`seqStart (Tone)= ${seqStart.toFixed(4)}`);
-
   const total=currentSeq.reduce((s,id)=>s+(G(id)?.beats||0),0);
 
   if(document.getElementById('metro-on').checked){
     const totalBeats=currentSeq.reduce((s,id)=>s+(G(id)?.beats||0),0);
     for(let b=0;b<totalBeats;b++){
-      const tClick=seqStart+b*beat;
-      if(b<4) console.log(`  Metro beat ${b} = ${tClick.toFixed(4)} (Tone)`);
-      clickT(tClick, b%meter===0);
+      clickT(seqStart+b*beat, b%meter===0);
     }
   }
 
@@ -751,7 +739,6 @@ function playRhythm(){
   currentSeq.forEach((id,i)=>{
     const grp=G(id);
     const tNote=seqStart+cursor*beat;
-    if(i<4) console.log(`  Note[${i}] "${id}" = ${tNote.toFixed(4)} (Tone) | diff metro = ${(tNote-(seqStart+cursor*beat)).toFixed(4)}s`);
     const delayMs=(tNote-tNow)*1000;
     setTimeout(()=>{
       document.querySelectorAll('.ncell').forEach(e=>e.style.opacity='');
@@ -760,7 +747,6 @@ function playRhythm(){
     playGrpT(grp, tNote);
     cursor+=grp.beats;
   });
-  console.groupEnd();
 
   setTimeout(()=>{
     document.querySelectorAll('.ncell').forEach(e=>e.style.opacity='');
