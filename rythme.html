@@ -272,6 +272,11 @@ body.light .fkb{background:#fff!important;border-color:#cec6b8!important;color:#
       </svg>
       <div class="staff" id="staff"><span class="hint-txt">Générez un rythme</span></div>
     </div>
+    <!-- Flash métronome sous la portée -->
+    <div style="display:flex;align-items:center;gap:.5rem;margin-top:.4rem;min-height:18px">
+      <div id="metro-flash" style="width:12px;height:12px;border-radius:50%;background:var(--border);transition:background .04s,transform .04s;flex-shrink:0"></div>
+      <span style="font-size:.58rem;color:var(--muted)" id="metro-flash-lbl"></span>
+    </div>
     <div class="controls">
       <button class="btn btn-p" id="btn-gen" onclick="generate()">⟳ Générer</button>
       <button class="btn" id="btn-play" onclick="playRhythm()" disabled>▶ Écouter</button>
@@ -347,7 +352,7 @@ const SMUFL = {
   's-croche':   '\uD834\uDD3E', // 𝄾 rest8th
 };
 
-function svgFig(id, col, W, H){
+function svgFig(id, col, W, H, slFactor=1.0){
   const cx=W/2;
   const fs=Math.min(W,H)*.75; // taille de police adaptée
 
@@ -362,19 +367,20 @@ function svgFig(id, col, W, H){
 
   // Pour les notes : dessiner avec SVG (plus de contrôle sur hampes et ligatures)
   const NH=H*.62;
-  const hF=(x,y)=>`<ellipse cx="${x}" cy="${y}" rx="${W*.16}" ry="${W*.11}" transform="rotate(-20,${x},${y})" fill="${col}"/>`;
-  const hO=(x,y)=>`<ellipse cx="${x}" cy="${y}" rx="${W*.16}" ry="${W*.11}" transform="rotate(-20,${x},${y})" fill="none" stroke="${col}" stroke-width="1.7"/>`;
-  const sU=(x,y,len)=>`<line x1="${x+W*.14}" y1="${y-2}" x2="${x+W*.14}" y2="${y-len}" stroke="${col}" stroke-width="1.6"/>`;
-  const bm=(x1,x2,y)=>`<line x1="${x1+W*.14}" y1="${y}" x2="${x2+W*.14}" y2="${y}" stroke="${col}" stroke-width="2.8"/>`;
-  const flg=(x,top)=>`<path d="M${x+W*.14},${top} C${x+W*.38},${top+7} ${x+W*.38},${top+14} ${x+W*.14},${top+20}" fill="none" stroke="${col}" stroke-width="1.6" stroke-linecap="round"/>`;
-  const dt=(x,y)=>`<circle cx="${x+W*.34}" cy="${y-3}" r="2.2" fill="${col}"/>`;
-  const SL=H*.42; // longueur hampe
+  const RX=4.0, RY=2.84, SO=3.2;
+  const hF=(x,y)=>`<ellipse cx="${x}" cy="${y}" rx="${RX}" ry="${RY}" transform="rotate(-20,${x},${y})" fill="${col}"/>`;
+  const hO=(x,y)=>`<ellipse cx="${x}" cy="${y}" rx="${RX}" ry="${RY}" transform="rotate(-20,${x},${y})" fill="none" stroke="${col}" stroke-width="1.5"/>`;
+  const sU=(x,y,len)=>`<line x1="${x+SO}" y1="${y-0.8}" x2="${x+SO}" y2="${y-len}" stroke="${col}" stroke-width="1.5"/>`;
+  const bm=(x1,x2,y)=>`<line x1="${x1+SO}" y1="${y}" x2="${x2+SO}" y2="${y}" stroke="${col}" stroke-width="2.5"/>`;
+  const flg=(x,top)=>`<path d="M${x+SO},${top} C${x+SO+8},${top+5} ${x+SO+8},${top+11} ${x+SO},${top+16}" fill="none" stroke="${col}" stroke-width="1.5" stroke-linecap="round"/>`;
+  const dt=(x,y)=>`<circle cx="${x+SO+3}" cy="${y-2}" r="1.8" fill="${col}"/>`;
+  const SL=H*.42*slFactor;
   const STB=NH-SL*.8;
 
   let body='';
   switch(id){
     case 'ronde':
-      body=hO(cx,NH)+`<ellipse cx="${cx+W*.04}" cy="${NH}" rx="${W*.07}" ry="${W*.055}" transform="rotate(-20,${cx},${NH})" fill="${col}"/>`;
+      body=hO(cx,NH)+`<ellipse cx="${cx+RX*.5}" cy="${NH}" rx="${RX*.45}" ry="${RY*.45}" transform="rotate(-20,${cx},${NH})" fill="${col}"/>`;
       break;
     case 'blanche':   body=hO(cx,NH)+sU(cx,NH,SL); break;
     case 'blanche-pt':body=hO(cx,NH)+sU(cx,NH,SL)+dt(cx,NH); break;
@@ -411,7 +417,7 @@ function svgFig(id, col, W, H){
 
 function qSVG(W,H){
   return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
-    <ellipse cx="${W/2}" cy="${H*.55}" rx="${W*.14}" ry="${W*.1}" transform="rotate(-15,${W/2},${H*.55})" fill="var(--muted)" opacity=".2"/>
+    <ellipse cx="${W/2}" cy="${H*.62}" rx="4.0" ry="2.84" transform="rotate(-20,${W/2},${H*.62})" fill="var(--muted)" opacity=".2"/>
   </svg>`;
 }
 
@@ -551,13 +557,24 @@ function playGrp(grp, tAbs){
 
 // clickT — utilise Tone.now() comme référence (même horloge que sampler)
 function clickT(tTone, acc){
-  // Convertir Tone.now() en ac.currentTime
+  const tNowLocal=Tone.now();
   const ac=Tone.getContext().rawContext;
-  const t=ac.currentTime+(tTone-Tone.now());
+  const t=ac.currentTime+(tTone-tNowLocal);
   const o=ac.createOscillator(),g=ac.createGain();
   o.type='sine';o.frequency.value=acc?1100:750;
   g.gain.setValueAtTime(acc?.4:.2,t);g.gain.exponentialRampToValueAtTime(.001,t+.04);
   o.connect(g);g.connect(ac.destination);o.start(t);o.stop(t+.05);
+  // Flash point métronome
+  const delayMs=Math.max(0,(tTone-tNowLocal)*1000);
+  setTimeout(()=>{
+    const dot=document.getElementById('metro-flash');
+    const lbl=document.getElementById('metro-flash-lbl');
+    if(!dot)return;
+    dot.style.background=acc?'var(--accent)':'var(--text)';
+    dot.style.transform=acc?'scale(1.5)':'scale(1.15)';
+    if(lbl)lbl.textContent=acc?'↓':'·';
+    setTimeout(()=>{dot.style.background='var(--border)';dot.style.transform='scale(1)';if(lbl)lbl.textContent='';},120);
+  },delayMs);
 }
 
 // playGrpT — tTone est en Tone.now()
@@ -612,10 +629,10 @@ function buildToggles(){
       btn.style.cssText=`display:flex;flex-direction:column;align-items:center;gap:.2rem;
         padding:.25rem .35rem;border-radius:6px;border:1.5px solid ${on?'var(--accent)':'var(--border)'};
         cursor:pointer;font-size:.48rem;color:${on?'var(--accent)':'var(--muted)'};
-        transition:all .12s;min-width:38px;text-align:center;user-select:none`;
+        transition:all .12s;min-width:54px;text-align:center;user-select:none`;
       btn.id='tog-'+grp.id;
       btn.dataset.checked=on?'1':'0';
-      btn.innerHTML=svgFig(grp.id,col,32,44)+`<span>${grp.label}</span>`;
+      btn.innerHTML=svgFig(grp.id,col,54,48)+`<span>${grp.label}</span>`;
       btn.onclick=()=>{
         const nowOn=btn.dataset.checked==='1';
         btn.dataset.checked=nowOn?'0':'1';
@@ -641,7 +658,7 @@ function buildFigKbd(){
     active.forEach(grp=>{
       const col=grp.cat==='s'?'var(--accent2)':'var(--text)';
       const b=document.createElement('button');b.className='fkb';
-      b.innerHTML=svgFig(grp.id,col,34,46)+`<span class="albl">${grp.label}</span>`;
+      b.innerHTML=svgFig(grp.id,col,54,50)+`<span class="albl">${grp.label}</span>`;
       b.onclick=()=>addAns(grp.id);el.appendChild(b);
     });
   });
@@ -709,7 +726,7 @@ function renderStaff(hide){
     if(hide&&!revealed){cell.innerHTML=qSVG(grp.W,90);}
     else{
       const col=grp.cat==='s'?'var(--accent2)':'var(--text)';
-      cell.innerHTML=svgFig(id,col,grp.W,90);
+      cell.innerHTML=svgFig(id,col,grp.W,90,0.72);
       const lbl=document.createElement('div');lbl.className='fig-lbl';lbl.textContent=grp.label;cell.appendChild(lbl);
     }
     cell.id='nc-'+i;el.appendChild(cell);
@@ -756,15 +773,26 @@ function playRhythm(){
     const tNote=seqStart+cursor*beat;
     const delayMs=(tNote-tNow)*1000;
     setTimeout(()=>{
-      document.querySelectorAll('.ncell').forEach(e=>e.style.opacity='');
-      const cell=document.getElementById('nc-'+i);if(cell)cell.style.opacity='1';
+      // Retirer la couleur des autres cellules
+      document.querySelectorAll('.ncell').forEach(e=>{
+        e.style.opacity='';
+        e.style.filter='';
+      });
+      // Colorier la cellule active
+      const cell=document.getElementById('nc-'+i);
+      if(cell){
+        const isSilence=grp.cat==='s';
+        cell.style.filter=isSilence
+          ?'drop-shadow(0 0 4px var(--accent2)) brightness(1.6)'
+          :'drop-shadow(0 0 4px var(--accent)) brightness(1.8)';
+      }
     },delayMs);
     playGrpT(grp, tNote);
     cursor+=grp.beats;
   });
 
   setTimeout(()=>{
-    document.querySelectorAll('.ncell').forEach(e=>e.style.opacity='');
+    document.querySelectorAll('.ncell').forEach(e=>{e.style.opacity='';e.style.filter='';});
     document.getElementById('play-ind').classList.remove('on');
     document.getElementById('btn-play').disabled=false;
     playing=false;
