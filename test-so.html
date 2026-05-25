@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8">
+<style>
+body{background:#1a1a1a;color:#fff;font-family:monospace;padding:2rem;display:flex;flex-direction:column;align-items:center;gap:1.5rem}
+.row{display:flex;gap:1rem;align-items:center;flex-wrap:wrap;justify-content:center}
+input[type=range]{width:300px}
+#so-val,#rx-val{font-size:1.5rem;color:#f0a;min-width:3rem;text-align:center}
+svg{border:1px solid #444;background:#222;border-radius:8px}
+</style>
+</head>
+<body>
+<h2>Ajustement SO et RX</h2>
+<div class="row">
+  <label>SO =</label>
+  <input type="range" id="so" min="0" max="6" step="0.1" value="2.3">
+  <span id="so-val">2.3</span>
+</div>
+<div class="row">
+  <label>RX =</label>
+  <input type="range" id="rx" min="2" max="8" step="0.1" value="4.5">
+  <span id="rx-val">4.5</span>
+</div>
+<div class="row" id="svgs"></div>
+<script>
+function draw(SO, RX){
+  const RY=RX*0.71;
+  const col='#eee';
+  const W=72,H=60;
+  const NH=H*.62,SL=H*.42,STB=NH-SL*.8;
+  const cx=W/2;
+  const hF=(x,y)=>`<ellipse cx="${x}" cy="${y}" rx="${RX}" ry="${RY}" transform="rotate(-20,${x},${y})" fill="${col}"/>`;
+  const sU=(x,y,len)=>`<line x1="${x+SO}" y1="${y-0.8}" x2="${x+SO}" y2="${y-len}" stroke="${col}" stroke-width="1.5"/>`;
+  const t=NH-SL*.8;
+
+  // Noire
+  const s1=hF(cx,NH)+sU(cx,NH,SL);
+
+  // 2 croches
+  const [x1,x2]=[cx-W*.22,cx+W*.22];
+  const st1=x1+SO, st2=x2+SO;
+  const s2=hF(x1,NH)+sU(x1,NH,SL*.8)+hF(x2,NH)+sU(x2,NH,SL*.8)
+    +`<line x1="${st1}" y1="${t}" x2="${st2}" y2="${t}" stroke="${col}" stroke-width="2.5"/>`;
+
+  // 4 doubles croches
+  const xs=[cx-W*.36,cx-W*.12,cx+W*.12,cx+W*.36];
+  const ss=xs.map(x=>x+SO);
+  const s4=xs.map(x=>hF(x,NH)+sU(x,NH,SL*.8)).join('')
+    +`<line x1="${ss[0]}" y1="${t}" x2="${ss[3]}" y2="${t}" stroke="${col}" stroke-width="2.5"/>`
+    +`<line x1="${ss[0]}" y1="${t+5}" x2="${ss[3]}" y2="${t+5}" stroke="${col}" stroke-width="2.5"/>`;
+
+  return [
+    `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${s1}</svg>`,
+    `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${s2}</svg>`,
+    `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${s4}</svg>`,
+  ];
+}
+
+const soSlider=document.getElementById('so');
+const rxSlider=document.getElementById('rx');
+const soVal=document.getElementById('so-val');
+const rxVal=document.getElementById('rx-val');
+const cont=document.getElementById('svgs');
+
+function update(){
+  const SO=parseFloat(soSlider.value);
+  const RX=parseFloat(rxSlider.value);
+  soVal.textContent=SO.toFixed(1);
+  rxVal.textContent=RX.toFixed(1);
+  cont.innerHTML=draw(SO,RX).join('');
+}
+soSlider.addEventListener('input',update);
+rxSlider.addEventListener('input',update);
+update();
+</script>
+</body>
+</html>
