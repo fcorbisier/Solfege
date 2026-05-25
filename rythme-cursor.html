@@ -7,6 +7,11 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🥁</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
+@font-face{
+  font-family:Bravura;
+  src:url('https://cdn.jsdelivr.net/npm/@vexflow-fonts/bravura/bravura.woff2') format('woff2');
+  font-display:swap;
+}
 :root{--bg:#0e0e12;--surface:#16161e;--surface2:#1e1e2a;--border:#2a2a3a;--accent:#c8a97e;--accent2:#7eb8c8;--text:#e8e4d9;--muted:#6b6880;--success:#7ec87e;--error:#c87e7e}
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;min-height:100vh;
@@ -315,17 +320,29 @@ function G(id){return GROUPS.find(g=>g.id===id);}
 
 // ═══ VEXFLOW — gravure musicale ═══════════════
 let vexReady=false;
-const RHYTHM_KEY='g/5/x2'; // tête ronde sur ligne (rythme / percussion)
+// b/4 = noire sur la 3e ligne (pas de /x2 : évite les têtes en croix percussion)
+const RHYTHM_KEY='b/4';
 
 function loadVexFlow(){
   return new Promise((resolve,reject)=>{
-    if(window.Vex?.Flow){vexReady=true;resolve();return;}
+    if(window.Vex?.Flow){initVexFonts();vexReady=true;resolve();return;}
     const s=document.createElement('script');
     s.src='https://cdn.jsdelivr.net/npm/vexflow@4.2.5/build/cjs/vexflow.js';
-    s.onload=()=>{vexReady=true;resolve();};
+    s.onload=()=>{
+      initVexFonts();
+      vexReady=true;
+      resolve();
+    };
     s.onerror=reject;
     document.head.appendChild(s);
   });
+}
+
+function initVexFonts(){
+  const VF=window.Vex?.Flow;
+  if(!VF)return;
+  if(typeof VF.setMusicFont==='function')VF.setMusicFont('Bravura');
+  else if(typeof VF.setFont==='function')VF.setFont('Bravura',10);
 }
 
 function cssVar(name,fallback){
@@ -345,40 +362,40 @@ function voiceTimeForBeats(beats){
 
 function pushFigureTickables(VF,id,notes,beams){
   const{StaveNote}=VF;
-  const stem={stem_direction:VF.Stem?.UP??1};
+  const stemUp={stem_direction:VF.Stem?.UP??1};
   const k=[RHYTHM_KEY];
   switch(id){
-    case 'ronde': notes.push(new StaveNote({keys:k,duration:'w',...stem})); break;
-    case 'blanche': notes.push(new StaveNote({keys:k,duration:'h',...stem})); break;
-    case 'noire': notes.push(new StaveNote({keys:k,duration:'q',...stem})); break;
-    case 'croche': notes.push(new StaveNote({keys:k,duration:'8',...stem})); break;
-    case 'noire-pt': notes.push(new StaveNote({keys:k,duration:'q.',...stem})); break;
-    case 'blanche-pt': notes.push(new StaveNote({keys:k,duration:'h.',...stem})); break;
+    case 'ronde': notes.push(new StaveNote({keys:k,duration:'w'})); break;
+    case 'blanche': notes.push(new StaveNote({keys:k,duration:'h'})); break;
+    case 'noire': notes.push(new StaveNote({keys:k,duration:'q',...stemUp})); break;
+    case 'croche': notes.push(new StaveNote({keys:k,duration:'8',...stemUp})); break;
+    case 'noire-pt': notes.push(new StaveNote({keys:k,duration:'q.',...stemUp})); break;
+    case 'blanche-pt': notes.push(new StaveNote({keys:k,duration:'h.',...stemUp})); break;
     case 's-ronde': notes.push(new StaveNote({keys:k,duration:'wr'})); break;
     case 's-blanche': notes.push(new StaveNote({keys:k,duration:'hr'})); break;
     case 's-noire': notes.push(new StaveNote({keys:k,duration:'qr'})); break;
     case 's-croche': notes.push(new StaveNote({keys:k,duration:'8r'})); break;
     case '2croches':{
-      const a=new StaveNote({keys:k,duration:'8',...stem});
-      const b=new StaveNote({keys:k,duration:'8',...stem});
+      const a=new StaveNote({keys:k,duration:'8',...stemUp});
+      const b=new StaveNote({keys:k,duration:'8',...stemUp});
       notes.push(a,b);beams.push([a,b]);break;
     }
     case '4dcroches':{
-      const ns=[0,1,2,3].map(()=>new StaveNote({keys:k,duration:'16',...stem}));
+      const ns=[0,1,2,3].map(()=>new StaveNote({keys:k,duration:'16',...stemUp}));
       notes.push(...ns);beams.push(ns);break;
     }
     case 'croche-2dcr':{
-      const a=new StaveNote({keys:k,duration:'8',...stem});
-      const b=new StaveNote({keys:k,duration:'16',...stem});
-      const c=new StaveNote({keys:k,duration:'16',...stem});
+      const a=new StaveNote({keys:k,duration:'8',...stemUp});
+      const b=new StaveNote({keys:k,duration:'16',...stemUp});
+      const c=new StaveNote({keys:k,duration:'16',...stemUp});
       notes.push(a,b,c);beams.push([a,b,c]);break;
     }
     case 'contretemps':{
       notes.push(new StaveNote({keys:k,duration:'8r'}));
-      notes.push(new StaveNote({keys:k,duration:'8',...stem}));
+      notes.push(new StaveNote({keys:k,duration:'8',...stemUp}));
       break;
     }
-    default: notes.push(new StaveNote({keys:k,duration:'q',...stem}));
+    default: notes.push(new StaveNote({keys:k,duration:'q',...stemUp}));
   }
 }
 
@@ -417,7 +434,7 @@ function renderVexFigure(container,id,W,H,col){
   renderer.resize(W,H);
   const ctx=renderer.getContext();
   ctx.setStrokeStyle(col);ctx.setFillStyle(col);
-  const stave=new VF.Stave(4,8,Math.max(W-8,32));
+  const stave=new VF.Stave(0,18,Math.max(W,40));
   stave.setContext(ctx).draw();
   drawTickablesOnStave(VF,ctx,stave,notes,beats,beams);
 }
@@ -450,7 +467,7 @@ function renderRhythmScore(container,seq){
     const notes=[];const beams=[];
     measureIds.forEach(fid=>pushFigureTickables(VF,fid,notes,beams));
     const stave=new VF.Stave(x,y,staveW);
-    if(mi===0)stave.addClef('percussion').addTimeSignature(`${meter}/4`);
+    if(mi===0)stave.addClef('treble').addTimeSignature(`${meter}/4`);
     else stave.setBegBarType(VF.Barline.type.SINGLE);
     if(mi===measures.length-1)stave.setEndBarType(VF.Barline.type.END);
     stave.setContext(ctx).draw();
