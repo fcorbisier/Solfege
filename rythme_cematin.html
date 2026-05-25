@@ -864,7 +864,6 @@ document.addEventListener('keydown',e=>{
   if(e.key===' '){e.preventDefault();playRhythm();}
   else if(e.key==='Enter'){e.preventDefault();check();}
 });
-initUI();
 document.getElementById('btn-gen').addEventListener('click',ensureAudio,{once:true});
 
 // Toggle métronome
@@ -944,20 +943,7 @@ function saveConfig() {
   try { localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); } catch(e) {}
 }
 
-let cfgLoading=false;
-
-function isToggleOn(v){
-  return v==='1'||v===1||v===true;
-}
-
-function applyToggleVisual(el,on){
-  el.dataset.checked=on?'1':'0';
-  el.style.borderColor=on?'var(--accent)':'var(--border)';
-  el.style.color=on?'var(--accent)':'var(--muted)';
-}
-
 function loadConfig() {
-  cfgLoading=true;
   let cfg;
   try { cfg = JSON.parse(localStorage.getItem(CFG_KEY) || 'null'); } catch(e) {}
   cfg = cfg || CFG_DEFAULTS;
@@ -967,53 +953,41 @@ function loadConfig() {
   if(cfg['sound-type'] !== undefined) { const el = document.getElementById('sound-type'); if(el) el.value = cfg['sound-type']; }
   if(cfg['piano-note'] !== undefined) { const el = document.getElementById('piano-note'); if(el) el.value = cfg['piano-note']; }
 
-  const hasToggleCfg=Object.keys(cfg).some(k=>k.startsWith('tog_'));
-  document.querySelectorAll('[id^="tog-"]').forEach(el=>{
-    const k='tog_'+el.id.replace('tog-','');
-    if(hasToggleCfg&&cfg[k]!==undefined){
-      applyToggleVisual(el,isToggleOn(cfg[k]));
+  document.querySelectorAll('[id^="tog-"]').forEach(el => {
+    const k = 'tog_'+el.id.replace('tog-','');
+    if(cfg[k] !== undefined) {
+      const on = cfg[k]==='1' || cfg[k]===1 || cfg[k]===true;
+      el.dataset.checked = on ? '1' : '0';
+      el.style.borderColor = on ? 'var(--accent)' : 'var(--border)';
+      el.style.color = on ? 'var(--accent)' : 'var(--muted)';
     }
   });
-
-  // Si aucune figure active (config vide ou tout désactivé), revenir aux défauts
-  if(!activeGroups().length){
-    DEFAULT_ON.forEach(id=>{
-      const el=document.getElementById('tog-'+id);
-      if(el)applyToggleVisual(el,true);
-    });
-  }
-
-  const tvEl=document.getElementById('tv')||document.getElementById('tempo-val');
-  const tmEl=document.getElementById('tempo');
-  if(tvEl&&tmEl)tvEl.textContent=tmEl.value;
-  const bvEl=document.getElementById('bv');
-  const bsEl=document.getElementById('bars');
-  if(bvEl&&bsEl)bvEl.textContent=bsEl.value;
-  if(typeof onSoundTypeChange==='function')onSoundTypeChange();
-  cfgLoading=false;
-}
-
-function initUI(){
-  buildToggles();
-  loadConfig();
+  const tvEl = document.getElementById('tv') || document.getElementById('tempo-val');
+  const tmEl = document.getElementById('tempo');
+  if(tvEl && tmEl) tvEl.textContent = tmEl.value;
+  const bvEl = document.getElementById('bv');
+  const bsEl = document.getElementById('bars');
+  if(bvEl && bsEl) bvEl.textContent = bsEl.value;
+  if(typeof onSoundTypeChange === 'function') onSoundTypeChange();
   buildFigKbd();
-  updateScore();
 }
 
 function resetConfig() {
   try { localStorage.removeItem(CFG_KEY); } catch(e) {}
-  initUI();
+  buildToggles();
+  buildFigKbd();
+  loadConfig();
 }
 
 // Auto-save sur tout changement dans la config
-document.addEventListener('change', e => {
-  if(cfgLoading)return;
-  saveConfig();
-});
-document.addEventListener('input', e => {
-  if(cfgLoading||e.target.type!=='range')return;
-  saveConfig();
-});
+document.addEventListener('change', e => { saveConfig(); });
+document.addEventListener('input', e => { if(e.target.type === 'range') saveConfig(); });
+
+// Comme rythme_hier : clavier tout de suite, puis config sauvegardée
+buildToggles();
+buildFigKbd();
+loadConfig();
+updateScore();
 
 </script>
 </body>
