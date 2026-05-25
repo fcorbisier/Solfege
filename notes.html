@@ -832,15 +832,12 @@ function resetConfig() {
 // Auto-save sur tout changement dans la config
 document.addEventListener('change', e => {
   const cfg = document.querySelector('.cfg, .cg, #config-panel');
-  saveConfig();
+  if (e.target.closest ? e.target.closest('.cfg, .panel, form') : true) saveConfig();
 });
 document.addEventListener('input', e => {
   if (e.target.type === 'range') saveConfig();
 });
 
-
-// Charger la config après que tout soit défini
-loadConfig();
 </script>
 </body>
 </html>

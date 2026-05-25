@@ -362,23 +362,19 @@ function svgFig(id, col, W, H){
 
   // Pour les notes : dessiner avec SVG (plus de contrôle sur hampes et ligatures)
   const NH=H*.62;
-  // Taille de tête ABSOLUE — même taille visuelle quelle que soit la figure
-  const RX=3.2, RY=2.2;
-  // Offset hampe : bord droit de l'ellipse rotée -20° = RX*cos(20°) ≈ 3.0
-  const SO=2.3; // stem offset
-  const hF=(x,y)=>`<ellipse cx="${x}" cy="${y}" rx="${RX}" ry="${RY}" transform="rotate(-20,${x},${y})" fill="${col}"/>`;
-  const hO=(x,y)=>`<ellipse cx="${x}" cy="${y}" rx="${RX}" ry="${RY}" transform="rotate(-20,${x},${y})" fill="none" stroke="${col}" stroke-width="1.5"/>`;
-  const sU=(x,y,len)=>`<line x1="${x+SO}" y1="${y-0.8}" x2="${x+SO}" y2="${y-len}" stroke="${col}" stroke-width="1.5"/>`;
-  const bm=(x1,x2,y)=>`<line x1="${x1+SO}" y1="${y}" x2="${x2+SO}" y2="${y}" stroke="${col}" stroke-width="2.5"/>`;
-  const flg=(x,top)=>`<path d="M${x+SO},${top} C${x+SO+8},${top+5} ${x+SO+8},${top+11} ${x+SO},${top+16}" fill="none" stroke="${col}" stroke-width="1.5" stroke-linecap="round"/>`;
-  const dt=(x,y)=>`<circle cx="${x+SO+3}" cy="${y-2}" r="1.8" fill="${col}"/>`;
-  const SL=H*.42;
+  const hF=(x,y)=>`<ellipse cx="${x}" cy="${y}" rx="${W*.16}" ry="${W*.11}" transform="rotate(-20,${x},${y})" fill="${col}"/>`;
+  const hO=(x,y)=>`<ellipse cx="${x}" cy="${y}" rx="${W*.16}" ry="${W*.11}" transform="rotate(-20,${x},${y})" fill="none" stroke="${col}" stroke-width="1.7"/>`;
+  const sU=(x,y,len)=>`<line x1="${x+W*.14}" y1="${y-2}" x2="${x+W*.14}" y2="${y-len}" stroke="${col}" stroke-width="1.6"/>`;
+  const bm=(x1,x2,y)=>`<line x1="${x1+W*.14}" y1="${y}" x2="${x2+W*.14}" y2="${y}" stroke="${col}" stroke-width="2.8"/>`;
+  const flg=(x,top)=>`<path d="M${x+W*.14},${top} C${x+W*.38},${top+7} ${x+W*.38},${top+14} ${x+W*.14},${top+20}" fill="none" stroke="${col}" stroke-width="1.6" stroke-linecap="round"/>`;
+  const dt=(x,y)=>`<circle cx="${x+W*.34}" cy="${y-3}" r="2.2" fill="${col}"/>`;
+  const SL=H*.42; // longueur hampe
   const STB=NH-SL*.8;
 
   let body='';
   switch(id){
     case 'ronde':
-      body=hO(cx,NH)+`<ellipse cx="${cx+RX*.5}" cy="${NH}" rx="${RX*.45}" ry="${RY*.45}" transform="rotate(-20,${cx},${NH})" fill="${col}"/>`;
+      body=hO(cx,NH)+`<ellipse cx="${cx+W*.04}" cy="${NH}" rx="${W*.07}" ry="${W*.055}" transform="rotate(-20,${cx},${NH})" fill="${col}"/>`;
       break;
     case 'blanche':   body=hO(cx,NH)+sU(cx,NH,SL); break;
     case 'blanche-pt':body=hO(cx,NH)+sU(cx,NH,SL)+dt(cx,NH); break;
@@ -386,27 +382,19 @@ function svgFig(id, col, W, H){
     case 'noire-pt':  body=hF(cx,NH)+sU(cx,NH,SL)+dt(cx,NH); break;
     case 'croche':    body=hF(cx,NH)+sU(cx,NH,SL)+flg(cx,NH-SL); break;
     case '2croches':{
-      const [x1,x2]=[cx-W*.22,cx+W*.22];
-      const t=NH-SL*.8;
-      const s1=x1+SO, s2=x2+SO; // position des hampes
-      body=hF(x1,NH)+sU(x1,NH,SL*.8)+hF(x2,NH)+sU(x2,NH,SL*.8)
-        +`<line x1="${s1}" y1="${t}" x2="${s2}" y2="${t}" stroke="${col}" stroke-width="2.5"/>`;
+      const [x1,x2]=[cx-W*.2,cx+W*.2];
+      body=hF(x1,NH)+sU(x1,NH,SL*.8)+hF(x2,NH)+sU(x2,NH,SL*.8)+bm(x1,x2,STB);
       break;}
     case '4dcroches':{
-      const xs=[cx-W*.36,cx-W*.12,cx+W*.12,cx+W*.36];
-      const t=NH-SL*.8;
-      const ss=xs.map(x=>x+SO); // positions des hampes
+      const xs=[cx-W*.32,cx-W*.11,cx+W*.1,cx+W*.31];
       body=xs.map(x=>hF(x,NH)+sU(x,NH,SL*.8)).join('')
-        +`<line x1="${ss[0]}" y1="${t}" x2="${ss[3]}" y2="${t}" stroke="${col}" stroke-width="2.5"/>`
-        +`<line x1="${ss[0]}" y1="${t+5}" x2="${ss[3]}" y2="${t+5}" stroke="${col}" stroke-width="2.5"/>`;
+        +bm(xs[0],xs[3],STB)
+        +bm(xs[0],xs[3],STB+8); // 2e ligature = double croche
       break;}
     case 'croche-2dcr':{
-      const [x1,x2,x3]=[cx-W*.28,cx,cx+W*.28];
-      const t=NH-SL*.8;
-      const [s1,s2,s3]=[x1+SO,x2+SO,x3+SO];
+      const [x1,x2,x3]=[cx-W*.24,cx,cx+W*.24];
       body=hF(x1,NH)+sU(x1,NH,SL*.8)+hF(x2,NH)+sU(x2,NH,SL*.8)+hF(x3,NH)+sU(x3,NH,SL*.8)
-        +`<line x1="${s1}" y1="${t}" x2="${s3}" y2="${t}" stroke="${col}" stroke-width="2.5"/>`
-        +`<line x1="${s2}" y1="${t+5}" x2="${s3}" y2="${t+5}" stroke="${col}" stroke-width="2.5"/>`;
+        +bm(x1,x3,STB)+bm(x2,x3,STB+8);
       break;}
     case 'contretemps':{
       // demi-soupir (½ temps) + croche (½ temps) = 1 temps
@@ -422,9 +410,8 @@ function svgFig(id, col, W, H){
 }
 
 function qSVG(W,H){
-  // Toujours la même boule floue — taille fixe pour ne pas révéler la figure
   return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
-    <ellipse cx="${W/2}" cy="${H*.62}" rx="3.2" ry="2.2" transform="rotate(-20,${W/2},${H*.62})" fill="var(--muted)" opacity=".2" filter="url(#note-blur)"/>
+    <ellipse cx="${W/2}" cy="${H*.55}" rx="${W*.14}" ry="${W*.1}" transform="rotate(-15,${W/2},${H*.55})" fill="var(--muted)" opacity=".2"/>
   </svg>`;
 }
 
@@ -625,10 +612,10 @@ function buildToggles(){
       btn.style.cssText=`display:flex;flex-direction:column;align-items:center;gap:.2rem;
         padding:.25rem .35rem;border-radius:6px;border:1.5px solid ${on?'var(--accent)':'var(--border)'};
         cursor:pointer;font-size:.48rem;color:${on?'var(--accent)':'var(--muted)'};
-        transition:all .12s;min-width:54px;text-align:center;user-select:none`;
+        transition:all .12s;min-width:38px;text-align:center;user-select:none`;
       btn.id='tog-'+grp.id;
       btn.dataset.checked=on?'1':'0';
-      btn.innerHTML=svgFig(grp.id,col,54,48)+`<span>${grp.label}</span>`;
+      btn.innerHTML=svgFig(grp.id,col,32,44)+`<span>${grp.label}</span>`;
       btn.onclick=()=>{
         const nowOn=btn.dataset.checked==='1';
         btn.dataset.checked=nowOn?'0':'1';
@@ -654,7 +641,7 @@ function buildFigKbd(){
     active.forEach(grp=>{
       const col=grp.cat==='s'?'var(--accent2)':'var(--text)';
       const b=document.createElement('button');b.className='fkb';
-      b.innerHTML=svgFig(grp.id,col,54,50)+`<span class="albl">${grp.label}</span>`;
+      b.innerHTML=svgFig(grp.id,col,34,46)+`<span class="albl">${grp.label}</span>`;
       b.onclick=()=>addAns(grp.id);el.appendChild(b);
     });
   });
@@ -970,11 +957,13 @@ function resetConfig() {
 }
 
 // Auto-save sur tout changement dans la config
-document.addEventListener('change', e => { saveConfig(); });
-document.addEventListener('input', e => { if(e.target.type==='range') saveConfig(); });
-
-// Charger la config après que tout soit défini
-loadConfig();
+document.addEventListener('change', e => {
+  const cfg = document.querySelector('.cfg, .cg, #config-panel');
+  if (e.target.closest ? e.target.closest('.cfg, .panel, form') : true) saveConfig();
+});
+document.addEventListener('input', e => {
+  if (e.target.type === 'range') saveConfig();
+});
 
 </script>
 </body>
