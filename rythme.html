@@ -564,8 +564,8 @@ function clickT(tTone, acc){
   o.type='sine';o.frequency.value=acc?1100:750;
   g.gain.setValueAtTime(acc?.4:.2,t);g.gain.exponentialRampToValueAtTime(.001,t+.04);
   o.connect(g);g.connect(ac.destination);o.start(t);o.stop(t+.05);
-  // Flash point métronome
-  const delayMs=Math.max(0,(tTone-tNowLocal)*1000);
+  // Flash point métronome — +30ms pour compenser la latence audio
+  const delayMs=Math.max(0,(tTone-tNowLocal)*1000+30);
   setTimeout(()=>{
     const dot=document.getElementById('metro-flash');
     const lbl=document.getElementById('metro-flash-lbl');
